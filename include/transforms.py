@@ -63,7 +63,9 @@ def fft2(data):
     """
     assert data.size(-1) == 2
     data = ifftshift(data, dim=(-3, -2))
-    data = torch.fft(data, 2, normalized=True)
+    data = torch.view_as_complex(data.contiguous())
+    data = torch.fft.fft2(data, norm="ortho")
+    data = torch.view_as_real(data)
     data = fftshift(data, dim=(-3, -2))
     return data
 
@@ -82,7 +84,9 @@ def ifft2(data):
     """
     assert data.size(-1) == 2
     data = ifftshift(data, dim=(-3, -2))
-    data = torch.ifft(data, 2, normalized=True)
+    data = torch.view_as_complex(data.contiguous())
+    data = torch.fft.ifft2(data, norm="ortho")
+    data = torch.view_as_real(data)
     data = fftshift(data, dim=(-3, -2))
     return data
 
