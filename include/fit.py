@@ -82,6 +82,8 @@ def fit(net,
         in_size=None,
         retain_graph = False,
         scale_out=1,
+        checkpoint_dir=None,
+        checkpoint_every=1000,
        ):
 
     if net_input is not None:
@@ -276,7 +278,17 @@ def fit(net,
             return loss   
         
         loss = optimizer.step(closure)
-            
+
+        if checkpoint_dir is not None and (i % checkpoint_every == 0 or i == num_iter - 1):
+            import os, torch as _torch
+            os.makedirs(checkpoint_dir, exist_ok=True)
+            _torch.save({
+                'iteration': i,
+                'net_state_dict': net.state_dict(),
+                'net_input_saved': net_input_saved,
+                'scale_out': scale_out,
+            }, os.path.join(checkpoint_dir, 'checkpoint.pt'))
+
         if find_best:
             # if training loss improves by at least one percent, we found a new best net
             lossval = loss.data
@@ -387,7 +399,17 @@ def fit_multiple(net,
             return loss
         
         loss = optimizer.step(closure)
-            
+
+        if checkpoint_dir is not None and (i % checkpoint_every == 0 or i == num_iter - 1):
+            import os, torch as _torch
+            os.makedirs(checkpoint_dir, exist_ok=True)
+            _torch.save({
+                'iteration': i,
+                'net_state_dict': net.state_dict(),
+                'net_input_saved': net_input_saved,
+                'scale_out': scale_out,
+            }, os.path.join(checkpoint_dir, 'checkpoint.pt'))
+
         if find_best:
             # if training loss improves by at least one percent, we found a new best net
             if best_mse > 1.005*loss.data:
