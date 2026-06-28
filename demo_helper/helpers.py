@@ -3,6 +3,20 @@ import numpy as np
 from torch.autograd import Variable
 dtype = torch.cuda.FloatTensor
 
+def to_tensor(data):
+    """Convert numpy array to PyTorch tensor. For complex arrays, the real and imaginary parts
+    are stacked along the last dimension."""
+    if np.iscomplexobj(data):
+        data = np.stack((data.real, data.imag), axis=-1)
+    return torch.from_numpy(data)
+
+def to_tensor(data):
+    """Convert numpy array to PyTorch tensor. For complex arrays, the real and imaginary parts
+    are stacked along the last dimension."""
+    if np.iscomplexobj(data):
+        data = np.stack((data.real, data.imag), axis=-1)
+    return torch.from_numpy(data)
+
 class MaskFunc:
     """
     ref: https://github.com/facebookresearch/fastMRI/tree/master/fastmri
