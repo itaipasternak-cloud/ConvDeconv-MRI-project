@@ -1,11 +1,13 @@
 """
 Standalone, importable fit() function for multicoil ConvDecoder fitting.
+Includes tqdm progress bar with live loss + ETA.
 """
 
 import copy
 import os
 import numpy as np
 import torch
+from tqdm.auto import tqdm
 
 
 def fit(net, img_noisy_var, num_channels, net_input, apply_f, mask,
@@ -23,18 +25,18 @@ def fit(net, img_noisy_var, num_channels, net_input, apply_f, mask,
     best_net = copy.deepcopy(net)
     best_mse = 1000000.0
 
-    for i in range(num_iter):
+    pbar = tqdm(range(num_iter), desc="Fitting", unit="it")
+    for i in pbar:
         def closure():
             optimizer.zero_grad()
             out = net(net_input.type(dtype))
             loss = mse(apply_f(out, mask), img_noisy_var)
             loss.backward()
             mse_wrt_noisy[i] = loss.data.cpu().numpy()
-            if i % 10 == 0:
-                print("Iteration %05d    Train loss %f " % (i, loss.data), "\r", end="")
             return loss
 
         loss = optimizer.step(closure)
+        pbar.set_postfix(loss=f"{loss.data.item():.6f}")
 
         if best_mse > 1.005 * loss.data:
             best_mse = loss.data
