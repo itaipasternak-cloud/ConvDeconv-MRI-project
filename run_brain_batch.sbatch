@@ -20,13 +20,12 @@ conda activate your-env-name
 
 # --- Dataset for THIS run: brain ---
 export CD_ANATOMY=brain                # feeds CKPT_ROOT + Section 6's data-folder resolution
-# FILL IN: the exact folder your extracted brain_multicoil_val_batch_*.tar.xz produced. If you
-# end up needing more than one batch to reach ~100 eligible files (brain has multiple
-# acquisition types + coil counts -- see the note on find_kavg_eligible_pool), extract all the
-# batches you download into the SAME folder so they're all visible to one CONVDECODER_DATA_DIR.
+# Confirmed from the actual completed download: both batch_0 and batch_1 extracted into the
+# SAME nested multicoil_val/ subfolder under brain_multicoil_val/, so both batches' files are
+# already visible from this one path -- no merging needed.
 # CONVDECODER_DATA_DIR_BRAIN (anatomy-specific) takes priority over CONVDECODER_DATA_DIR if both
 # are set -- either name works for a brain-only run like this one.
-export CONVDECODER_DATA_DIR=~/fastmri_data/brain_multicoil_val
+export CONVDECODER_DATA_DIR=~/fastmri_data/brain_multicoil_val/multicoil_val
 
 # Not required, but kept explicit: without CONVDECODER_CKPT_ROOT set, CKPT_ROOT now defaults to
 # a per-ANATOMY subfolder automatically (Section 2), so this line is really just belt-and-braces.

@@ -22,11 +22,12 @@ conda activate your-env-name
 
 # --- Dataset for THIS run: knee ---
 export CD_ANATOMY=knee                 # feeds CKPT_ROOT + Section 6's data-folder resolution
-# FILL IN: the exact folder `tar -xf knee_multicoil_val.tar.xz` produced (run
-# `tar -tf knee_multicoil_val.tar.xz | head -5` first to confirm the internal path).
+# Matches the nested-subfolder pattern confirmed for brain (the archive extracts into a
+# multicoil_val/ subfolder, not flat into knee_multicoil_val/ itself) -- verify once the knee
+# download actually finishes: `find ~/fastmri_data/knee_multicoil_val -maxdepth 2 -type d`.
 # CONVDECODER_DATA_DIR_KNEE (anatomy-specific) takes priority over CONVDECODER_DATA_DIR if both
 # are set -- either name works for a knee-only run like this one.
-export CONVDECODER_DATA_DIR=~/fastmri_data/multicoil_val
+export CONVDECODER_DATA_DIR=~/fastmri_data/knee_multicoil_val/multicoil_val
 
 # Not required, but kept explicit: without CONVDECODER_CKPT_ROOT set, CKPT_ROOT now defaults to
 # a per-ANATOMY subfolder automatically (Section 2), so knee/brain results can no longer collide
