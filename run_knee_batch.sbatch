@@ -22,12 +22,15 @@ conda activate your-env-name
 
 # --- Dataset for THIS run: knee ---
 export CD_ANATOMY=knee                 # feeds CKPT_ROOT + Section 6's data-folder resolution
-# Matches the nested-subfolder pattern confirmed for brain (the archive extracts into a
-# multicoil_val/ subfolder, not flat into knee_multicoil_val/ itself) -- verify once the knee
-# download actually finishes: `find ~/fastmri_data/knee_multicoil_val -maxdepth 2 -type d`.
+# knee_multicoil_val alone has only 100 CORPD_FBK + 98 CORPDFS_FBK eligible files -- one image
+# short of covering a 100-image batch (CD_KAVG_BATCH_SIZE below) if the run happens to pick a
+# CORPDFS_FBK target. knee_multicoil_combined/ merges in knee_multicoil_train_batch_0 (symlinks,
+# built once via the commands in the PR/commit message -- see setup_knee_combined_pool.sh) to
+# top up both groups. Re-run check_knee_pool.py against this folder after rebuilding the symlinks
+# if the train batch ever changes.
 # CONVDECODER_DATA_DIR_KNEE (anatomy-specific) takes priority over CONVDECODER_DATA_DIR if both
 # are set -- either name works for a knee-only run like this one.
-export CONVDECODER_DATA_DIR=~/fastmri_data/knee_multicoil_val/multicoil_val
+export CONVDECODER_DATA_DIR=~/fastmri_data/knee_multicoil_combined
 
 # Not required, but kept explicit: without CONVDECODER_CKPT_ROOT set, CKPT_ROOT now defaults to
 # a per-ANATOMY subfolder automatically (Section 2), so knee/brain results can no longer collide
