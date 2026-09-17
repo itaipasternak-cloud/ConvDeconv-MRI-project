@@ -1,3 +1,7 @@
 .DS_Store
 # Contains live, time-limited AWS presigned URLs -- never commit these (public repo).
 download_*.sbatch
+# Default (non-Colab) checkpoint/results root when $CONVDECODER_CKPT_ROOT isn't set (Section 2)
+# lands right next to the code, inside the repo -- never want checkpoints/large result dumps
+# committed to this public repo, even by accident.
+checkpoints_and_results/
