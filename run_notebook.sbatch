@@ -4,7 +4,7 @@
 #SBATCH --job-name=convdecoder_mri
 #SBATCH --output=slurm_logs/slurm-%j.out
 #SBATCH --error=slurm_logs/slurm-%j.out
-#SBATCH --account=acct-preempt        # <-- fill in your actual account/partition/qos
+#SBATCH --account=itai.p
 #SBATCH --partition=part-preempt
 #SBATCH --qos=qos-preempt
 #SBATCH --gres=gpu:1
@@ -18,8 +18,8 @@ mkdir -p slurm_logs outputs
 # Load user settings -- match this to your actual conda install path (same idea as your
 # train.sbatch example).
 source ~/.bashrc
-source /path/to/your/miniforge3/etc/profile.d/conda.sh
-conda activate your-env-name
+source /home/itai.p/miniforge3/etc/profile.d/conda.sh
+conda activate base
 
 # --- Config overrides for this run (optional) ---
 # Anything exported here overrides the matching CD_* toggle read by Section 2's "Environment-

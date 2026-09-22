@@ -4,7 +4,7 @@
 #SBATCH --job-name=convdecoder_knee_batch
 #SBATCH --output=slurm_logs/slurm-%j.out
 #SBATCH --error=slurm_logs/slurm-%j.out
-#SBATCH --account=acct-preempt        # <-- fill in your actual account/partition/qos
+#SBATCH --account=itai.p
 #SBATCH --partition=part-preempt
 #SBATCH --qos=qos-preempt
 #SBATCH --gres=gpu:1
@@ -17,8 +17,8 @@
 # --- Setup Environment ---
 mkdir -p slurm_logs outputs
 source ~/.bashrc
-source /path/to/your/miniforge3/etc/profile.d/conda.sh
-conda activate your-env-name
+source /home/itai.p/miniforge3/etc/profile.d/conda.sh
+conda activate base
 
 # --- Dataset for THIS run: knee ---
 export CD_ANATOMY=knee                 # feeds CKPT_ROOT + Section 6's data-folder resolution
