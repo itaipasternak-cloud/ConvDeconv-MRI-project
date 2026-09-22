@@ -16,6 +16,16 @@
 #SBATCH --job-name=convdecoder_single_image_test
 #SBATCH --output=slurm_logs/slurm-%j.out
 #SBATCH --error=slurm_logs/slurm-%j.out
+#SBATCH --open-mode=append             # part-preempt kills + requeues the SAME job ID on
+                                        # preemption -- without this, the requeued run would
+                                        # truncate/overwrite this log instead of appending to it.
+#SBATCH --requeue                      # part-preempt preemption kills the job outright (not
+                                        # suspend/resume) -- this asks SLURM to put it back in
+                                        # the queue afterward instead of just losing it. This
+                                        # script's demo fit isn't checkpointed mid-run (see
+                                        # Section 7-11's own note), so a requeue just redoes the
+                                        # whole (short, ~3h) demo from scratch -- still better
+                                        # than the job being silently lost.
 #SBATCH --account=acct-preempt
 #SBATCH --partition=part-preempt
 #SBATCH --qos=qos-preempt

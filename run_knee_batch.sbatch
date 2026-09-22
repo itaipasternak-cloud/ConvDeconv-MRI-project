@@ -4,6 +4,14 @@
 #SBATCH --job-name=convdecoder_knee_batch
 #SBATCH --output=slurm_logs/slurm-%j.out
 #SBATCH --error=slurm_logs/slurm-%j.out
+#SBATCH --open-mode=append             # part-preempt kills + requeues the SAME job ID on
+                                        # preemption -- without this, the requeued run would
+                                        # truncate/overwrite this log instead of appending to it.
+#SBATCH --requeue                      # part-preempt preemption kills the job outright (not
+                                        # suspend/resume) -- this asks SLURM to put it back in
+                                        # the queue afterward instead of just losing it. Safe
+                                        # here since the pipeline's own resume-by-CSV +
+                                        # RUN_MODE=load_existing logic picks up where it left off.
 #SBATCH --account=acct-preempt
 #SBATCH --partition=part-preempt
 #SBATCH --qos=qos-preempt
