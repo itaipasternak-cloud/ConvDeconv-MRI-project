@@ -44,15 +44,19 @@ STAMP="${SLURM_JOB_ID:-$(date +%Y%m%d_%H%M%S)}"
 FILTERED_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_${STAMP}_filtered.ipynb"
 OUT_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_${STAMP}.ipynb"
 
-# Step 1: strip any cell tagged "skip-slurm" -- e.g. Section 15's git push, which shouldn't run
-# unattended inside a submitted job regardless of whether GitHub is even reachable from this
-# node (see Section 1's note on login-node-vs-compute-node internet access). This does NOT
-# execute anything yet, just writes a filtered COPY with those cells removed; $NOTEBOOK itself
-# is untouched. To exclude more cells from SLURM runs later, tag them the same way in VS Code:
-# select the cell -> "..." menu (or Cell actions) -> Add Cell Tag -> type "skip-slurm".
+# Step 1: strip cells tagged "skip-slurm" (Sections 7-11's single-image demo fits -- redundant
+# with Section 12's own batch pipeline, which is what this generic full-run script is for) and
+# "no-unattended" (Section 15's git push, which shouldn't run unattended inside a submitted job
+# regardless of whether GitHub is even reachable from this node -- see Section 1's note on
+# login-node-vs-compute-node internet access). This does NOT execute anything yet, just writes a
+# filtered COPY with those cells removed; $NOTEBOOK itself is untouched. Want to run JUST the
+# single-image demo instead of the full batch pipeline? Use run_single_image_test.sbatch, which
+# keeps "skip-slurm" cells and strips only "no-unattended". To exclude more cells from SLURM runs
+# later, tag them the same way in VS Code: select the cell -> "..." menu (or Cell actions) ->
+# Add Cell Tag -> type the tag name.
 jupyter nbconvert \
     --to notebook \
-    --TagRemovePreprocessor.remove_cell_tags='["skip-slurm"]' \
+    --TagRemovePreprocessor.remove_cell_tags='["skip-slurm", "no-unattended"]' \
     --output "$(basename "$FILTERED_NOTEBOOK")" \
     --output-dir "$OUT_DIR" \
     "$NOTEBOOK"

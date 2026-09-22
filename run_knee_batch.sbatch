@@ -57,13 +57,15 @@ STAMP="${SLURM_JOB_ID:-$(date +%Y%m%d_%H%M%S)}"
 FILTERED_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_${STAMP}_filtered.ipynb"
 OUT_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_knee_${STAMP}.ipynb"
 
-# Strips cells tagged "skip-slurm" -- this now includes Sections 7-11 (the single-image demo
-# fits + their reporting cells), which are redundant with Section 12's own self-sufficient
-# K-ensemble batch pipeline and would otherwise burn ~1-2 hours per job on a fit this run doesn't
-# need, on top of Section 15's git-push cell (unattended-job-unsafe regardless of dataset).
+# Strips cells tagged "skip-slurm" (Sections 7-11, the single-image demo fits + their reporting
+# cells -- redundant with Section 12's own self-sufficient K-ensemble batch pipeline and would
+# otherwise burn ~1-2 hours per job on a fit this run doesn't need) and "no-unattended" (Section
+# 15's git-push cell -- unsafe in ANY unattended job, batch or single-image). See
+# run_single_image_test.sbatch for the complementary script that keeps "skip-slurm" cells and
+# strips only "no-unattended".
 jupyter nbconvert \
     --to notebook \
-    --TagRemovePreprocessor.remove_cell_tags='["skip-slurm"]' \
+    --TagRemovePreprocessor.remove_cell_tags='["skip-slurm", "no-unattended"]' \
     --output "$(basename "$FILTERED_NOTEBOOK")" \
     --output-dir "$OUT_DIR" \
     "$NOTEBOOK"
