@@ -32,7 +32,7 @@
 # --- Setup Environment ---
 mkdir -p slurm_logs outputs
 source ~/.bashrc
-source /home/projects/sipl-prj67890/miniforge3/etc/profile.d/conda.sh
+source /home/itai.p/miniforge3/etc/profile.d/conda.sh
 conda activate base
 
 # --- Config overrides for this run ---

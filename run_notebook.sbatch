@@ -18,7 +18,7 @@ mkdir -p slurm_logs outputs
 # Load user settings -- match this to your actual conda install path (same idea as your
 # train.sbatch example).
 source ~/.bashrc
-source /home/projects/sipl-prj67890/miniforge3/etc/profile.d/conda.sh
+source /home/itai.p/miniforge3/etc/profile.d/conda.sh
 conda activate base
 
 # --- Config overrides for this run (optional) ---
