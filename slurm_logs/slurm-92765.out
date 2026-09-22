@@ -1,0 +1,7 @@
+Job started on ece-silbmark2 at Tue Sep 22 10:39:42 AM IDT 2026
+KAVG_BATCH_SIZE for this run: 1
+/var/spool/slurmd/job92765/slurm_script: line 75: jupyter: command not found
+/var/spool/slurmd/job92765/slurm_script: line 83: papermill: command not found
+Finished at Tue Sep 22 10:39:42 AM IDT 2026.
+Output notebook: outputs/MRI_ConvDeconv_variance_earlystop_knee_92765.ipynb
+Results CSV under: /home/itai.p/fastmri_results/knee/results/

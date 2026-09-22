@@ -1,0 +1,12 @@
+Job started on ece-silbmark2 at Wed Sep 16 10:45:51 AM IDT 2026
+Internet reachable from ece-silbmark2 -- proceeding.
+Downloading knee_multicoil_val (~94 GB)...
+** Resuming transfer from byte position 100694526932
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+Extracting knee_multicoil_val...
+Finished at Wed Sep 16 12:18:53 PM IDT 2026.
+/home/itai.p/fastmri_data/knee_multicoil_val
+/home/itai.p/fastmri_data/knee_multicoil_val/multicoil_val
+count: 199

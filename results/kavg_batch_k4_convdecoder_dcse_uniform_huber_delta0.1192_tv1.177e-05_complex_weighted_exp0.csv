@@ -1,0 +1,2 @@
+Architecture,Image,Method,Z_Source,Loss_Type,Huber_Delta,TV_Weight,PSNR,SSIM,MS-SSIM,VIF,NMSE,HFEN
+convdecoder_dcse,file1000010.h5,"ConvDecoder-A (k=4, guided (different_images), 1350 iter, weighted, complex-domain)",uniform,huber,0.1192,1.177e-05,33.977854251528285,0.8807424859780115,0.9752249121665955,0.9138684080676571,0.003675808544101038,0.2728753518446535

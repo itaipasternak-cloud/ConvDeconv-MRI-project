@@ -1,0 +1,646 @@
+Job started on ece-silbmark2 at Tue Sep 22 10:48:09 AM IDT 2026
+KAVG_BATCH_SIZE for this run: 1
+[NbConvertApp] Converting notebook MRI_ConvDeconv_variance_earlystop.ipynb to notebook
+[NbConvertApp] Writing 5745748 bytes to outputs/MRI_ConvDeconv_variance_earlystop_92774_filtered.ipynb
+Input Notebook:  outputs/MRI_ConvDeconv_variance_earlystop_92774_filtered.ipynb
+Output Notebook: outputs/MRI_ConvDeconv_variance_earlystop_knee_92774.ipynb
+[IPKernelApp] WARNING | Kernel is running over TCP without encryption. All communication (including code and outputs) is sent in plain text and is susceptible to eavesdropping. Use IPC transport or launch with kernel manager-provisioned CurveZMQ keys to enable transport encryption.
+Executing notebook with kernel: python3
+Executing Cell 1---------------------------------------
+Ending Cell 1------------------------------------------
+Executing Cell 2---------------------------------------
+Ending Cell 2------------------------------------------
+Executing Cell 3---------------------------------------
+CUDA available: True
+/home/itai.p/ConvDeconv-MRI-project already exists -- pulling latest instead of re-cloning.
+
+Already up to date.
+Already up to date.
+Not running in Colab -- skipping Drive mount (this filesystem is already persistent).
+
+CompletedProcess(args=['/home/itai.p/miniforge3/bin/python', '-m', 'pip', 'install', '-q', 'sewar', 'pytorch_msssim', 'sigpy'], returncode=0)
+Ending Cell 3------------------------------------------
+Executing Cell 4---------------------------------------
+GitHub SSH auth OK -- Section 15 (save & push) is ready to use.
+
+Ending Cell 4------------------------------------------
+Executing Cell 5---------------------------------------
+CUDA_VISIBLE_DEVICES=0 (set by the environment/SLURM)
+num GPUs: 1
+
+Ending Cell 5------------------------------------------
+Executing Cell 6---------------------------------------
+Ending Cell 6------------------------------------------
+Executing Cell 7---------------------------------------
+CKPT_ROOT='/home/itai.p/fastmri_results/knee' (set by $CONVDECODER_CKPT_ROOT)
+Run tag: convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05  |  z source: uniform z  |  architecture: convdecoder_dcse  |  run mode: load_existing  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  seed: 0
+K-averaging: True (k=4, init=guided (different_images))
+Batch eval: True (n=20, fixed_set=True)
+Run A batch eval: False
+[env override] KAVG_BATCH_SIZE: 20 -> 1  (from $CD_KAVG_BATCH_SIZE)
+[env override] EARLY_STOP_PLOT_LIVE: True -> False  (from $CD_EARLY_STOP_PLOT_LIVE)
+[env override] ANATOMY: 'knee' -> 'knee'  (from $CD_ANATOMY)
+
+Ending Cell 7------------------------------------------
+Executing Cell 8---------------------------------------
+Ending Cell 8------------------------------------------
+Executing Cell 9---------------------------------------
+VBox(children=(HTML(value='<b>Core Config</b>'), Dropdown(description='ANATOMY', layout=Layout(width='460px'),…
+Interactive config GUI ready -- 72 toggles from Section 2, auto-generated (see this cell's docstring if one you expect is missing -- most likely Section 2 hasn't been run yet this session). Toggling a control above updates the matching global immediately (see the [GUI] confirmation lines). Re-run downstream cells to pick up any change.
+
+Ending Cell 9------------------------------------------
+Executing Cell 10--------------------------------------
+Ending Cell 10-----------------------------------------
+Executing Cell 11--------------------------------------
+Ending Cell 11-----------------------------------------
+Executing Cell 12--------------------------------------
+Ending Cell 12-----------------------------------------
+Executing Cell 13--------------------------------------
+Ending Cell 13-----------------------------------------
+Executing Cell 14--------------------------------------
+Ending Cell 14-----------------------------------------
+Executing Cell 15--------------------------------------
+Ending Cell 15-----------------------------------------
+Executing Cell 16--------------------------------------
+Ending Cell 16-----------------------------------------
+Executing Cell 17--------------------------------------
+Ending Cell 17-----------------------------------------
+Executing Cell 18--------------------------------------
+Ending Cell 18-----------------------------------------
+Executing Cell 19--------------------------------------
+Found 396 files (0.0s)
+
+Scanned 396 new file(s) for acquisition/coil metadata (cached to /home/itai.p/fastmri_results/knee/selections/file_groups_knee.json -- instant on future runs).
+Filtered to acquisition='CORPD_FBK', num_coils=15: 188/396 files match.
+file1002252.h5 — {'acquisition': 'CORPD_FBK', 'max': np.float64(0.0007114666179881507), 'norm': np.float64(0.24735176797841527), 'patient_id': '4506bfb3944be0437122c08f3286742e0dc0bbdaa7d48139de3161cddfab6556'}
+file1000584.h5 — {'acquisition': 'CORPD_FBK', 'max': np.float64(0.0011872032286336684), 'norm': np.float64(0.3846639083400468), 'patient_id': '9d66e549bb45dacfdc13c556bee579ba5985ca92c8b83ebedb94802902944828'}
+file1001116.h5 — {'acquisition': 'CORPD_FBK', 'max': np.float64(0.00047108180979776653), 'norm': np.float64(0.1796882527767542), 'patient_id': '44d6c62e57ad03c03b87df76220afe19d788e13d1c0ed459153a2d18205024b9'}
+file1002234.h5 — {'acquisition': 'CORPD_FBK', 'max': np.float64(0.0007964089921874214), 'norm': np.float64(0.34986749331954425), 'patient_id': 'bad89cf71bafe0264b1909803d9a6be83e174af32ed92e242a25790a829bf19d'}
+
+file1002458.h5 — {'acquisition': 'CORPD_FBK', 'max': np.float64(0.00036785712920821804), 'norm': np.float64(0.11520761903609895), 'patient_id': 'dd86983d7e8bccd466bb4808fa234fbe07fdb37c9353c6b8ef981e2db83e93a5'}
+
+Loaded 5 samples successfully (out of 5 attempted).
+
+Ending Cell 19-----------------------------------------
+Executing Cell 20--------------------------------------
+Ending Cell 20-----------------------------------------
+Executing Cell 21--------------------------------------
+Ending Cell 21-----------------------------------------
+Executing Cell 22--------------------------------------
+Ending Cell 22-----------------------------------------
+Executing Cell 23--------------------------------------
+Z_SOURCE is 'uniform', not 'mri_vae' -- set Z_SOURCE = 'mri_vae' in Section 2 and re-run from there (which loads the VAE) before running this diagnostic cell.
+
+Ending Cell 23-----------------------------------------
+Executing Cell 24--------------------------------------
+Ending Cell 24-----------------------------------------
+Executing Cell 25--------------------------------------
+RUN_FULL_SEARCH and RUN_ACCEL_SEARCH are both False -- skipping Section 6.5 entirely (no tuning-set draw, no preload, no search). Set at least one to True to actually run this cell.
+
+Ending Cell 25-----------------------------------------
+Executing Cell 26--------------------------------------
+Ending Cell 26-----------------------------------------
+Executing Cell 27--------------------------------------
+file1002333.h5 not yet in samples -- loading it from Drive now.
+Number of coils: 15, output_depth: 30, out_size: (640, 368)
+
+<Figure size 1800x600 with 3 Axes>
+Mean abs difference: 0.0251   Max abs difference: 0.4160
+
+Ending Cell 27-----------------------------------------
+Executing Cell 28--------------------------------------
+Ending Cell 28-----------------------------------------
+Executing Cell 29--------------------------------------
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/10000 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+  [early-stop] overfitting detected (variance): tracked metric has been >12% above its best value for 2 consecutive check(s) -- stopping at iter 6600 instead of running to 10000, skipping the remaining 3399 iteration(s).
+[early-stop] best output variance (sliding window of 4): 9.69446e-06 @ iter 6300  (overfitting detected -- stopped at iter 6600 of 10000)
+
+Ending Cell 29-----------------------------------------
+Executing Cell 30--------------------------------------
+Reference fit complete (not saved to disk -- this is a sanity-check-only fit).
+
+Ending Cell 30-----------------------------------------
+Executing Cell 31--------------------------------------
+<Figure size 2400x600 with 4 Axes>
+Mean abs difference: 0.0029   Max abs difference: 0.0657
+
+
+Metrics for file1002333.h5 (convdecoder_dcse, Huber(delta=0.1192)+TV(1.177e-05), uniform z, 10000 iter):
+  PSNR: 44.3927
+  SSIM: 0.9854
+  MS-SSIM: 0.9960
+  VIF: 0.9813
+  NMSE: 0.0024
+  HFEN: 0.1446
+
+Ending Cell 31-----------------------------------------
+Executing Cell 32--------------------------------------
+Ending Cell 32-----------------------------------------
+Executing Cell 33--------------------------------------
+file1001650.h5 not yet in samples -- loading it from Drive now.
+  WARNING: fixed ESPIRIT_ACS_WIDTH=23 exceeds this image's own safe ACS bound (19, num_cols=320) -- clamping to 19 for this image only, to avoid corrupting the calibration. (This image's matrix size differs from the cohort standard the fixed ACS width assumes -- see Section 2's ESPIRIT_ACS_WIDTH note.)
+
+K_AVERAGING is True — Run A below will be skipped; this cell's shared mask/measurement for the eval image is still needed by Section 12.
+
+<Figure size 1800x600 with 3 Axes>
+Mean abs difference: 0.0841   Max abs difference: 0.5272
+
+Ending Cell 33-----------------------------------------
+Executing Cell 34--------------------------------------
+Ending Cell 34-----------------------------------------
+Executing Cell 35--------------------------------------
+K_AVERAGING is True — skipping Run A (only Section 12 runs). Set K_AVERAGING = False to run Run A.
+
+Ending Cell 35-----------------------------------------
+Executing Cell 36--------------------------------------
+Ending Cell 36-----------------------------------------
+Executing Cell 37--------------------------------------
+K_AVERAGING is True — Run A row skipped in this run's results table (see Section 12 for the ConvDecoder-A ensemble result instead).
+
+                                                                                Architecture  \
+Image          Method                                   Z_Source Loss_Type                     
+file1002333.h5 Zero-filled                              n/a      n/a        convdecoder_dcse   
+               ConvDecoder (random weights, 10000 iter) uniform  huber      convdecoder_dcse   
+file1001650.h5 Zero-filled                              n/a      n/a        convdecoder_dcse   
+
+                                                                           Huber_Delta  \
+Image          Method                                   Z_Source Loss_Type               
+file1002333.h5 Zero-filled                              n/a      n/a               n/a   
+               ConvDecoder (random weights, 10000 iter) uniform  huber          0.1192   
+file1001650.h5 Zero-filled                              n/a      n/a               n/a   
+
+                                                                           TV_Weight  \
+Image          Method                                   Z_Source Loss_Type             
+file1002333.h5 Zero-filled                              n/a      n/a             n/a   
+               ConvDecoder (random weights, 10000 iter) uniform  huber      0.000012   
+file1001650.h5 Zero-filled                              n/a      n/a             n/a   
+
+                                                                               PSNR  \
+Image          Method                                   Z_Source Loss_Type            
+file1002333.h5 Zero-filled                              n/a      n/a        26.2468   
+               ConvDecoder (random weights, 10000 iter) uniform  huber      44.3927   
+file1001650.h5 Zero-filled                              n/a      n/a        19.0804   
+
+                                                                              SSIM  \
+Image          Method                                   Z_Source Loss_Type           
+file1002333.h5 Zero-filled                              n/a      n/a        0.8502   
+               ConvDecoder (random weights, 10000 iter) uniform  huber      0.9854   
+file1001650.h5 Zero-filled                              n/a      n/a        0.6750   
+
+                                                                            MS-SSIM  \
+Image          Method                                   Z_Source Loss_Type            
+file1002333.h5 Zero-filled                              n/a      n/a         0.9113   
+               ConvDecoder (random weights, 10000 iter) uniform  huber       0.9960   
+file1001650.h5 Zero-filled                              n/a      n/a         0.8363   
+
+                                                                               VIF  \
+Image          Method                                   Z_Source Loss_Type           
+file1002333.h5 Zero-filled                              n/a      n/a        0.4854   
+               ConvDecoder (random weights, 10000 iter) uniform  huber      0.9813   
+file1001650.h5 Zero-filled                              n/a      n/a        0.4874   
+
+                                                                              NMSE  \
+Image          Method                                   Z_Source Loss_Type           
+file1002333.h5 Zero-filled                              n/a      n/a        0.1549   
+               ConvDecoder (random weights, 10000 iter) uniform  huber      0.0024   
+file1001650.h5 Zero-filled                              n/a      n/a        0.1079   
+
+                                                                              HFEN  
+Image          Method                                   Z_Source Loss_Type          
+file1002333.h5 Zero-filled                              n/a      n/a        0.8020  
+               ConvDecoder (random weights, 10000 iter) uniform  huber      0.1446  
+file1001650.h5 Zero-filled                              n/a      n/a        0.7023  
+Ending Cell 37-----------------------------------------
+Executing Cell 38--------------------------------------
+Ending Cell 38-----------------------------------------
+Executing Cell 39--------------------------------------
+Section 10 is deprecated -- see this cell's comment for why and what to do instead.
+
+Ending Cell 39-----------------------------------------
+Executing Cell 40--------------------------------------
+Ending Cell 40-----------------------------------------
+Executing Cell 41--------------------------------------
+Section 11 is deprecated -- see this cell's comment for why and what to do instead.
+
+Ending Cell 41-----------------------------------------
+Executing Cell 42--------------------------------------
+Ending Cell 42-----------------------------------------
+Executing Cell 43--------------------------------------
+No existing reference selection found at /home/itai.p/fastmri_results/knee/selections/kavg_ref_selection_kavg4_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05.json -- drawing 4 random reference images now (this only happens once per RUN_TAG/K_VALUE combination; the choice is then saved for every later run to reuse).
+
+Saved reference selection to /home/itai.p/fastmri_results/knee/selections/kavg_ref_selection_kavg4_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05.json for reuse by future runs.
+
+
+Using 4 reference source images for ConvDecoder-A: ['file1001168.h5', 'file1001244.h5', 'file1000107.h5', 'file1000758.h5']
+
+Ending Cell 43-----------------------------------------
+Executing Cell 44--------------------------------------
+Ending Cell 44-----------------------------------------
+Executing Cell 45--------------------------------------
+[0] file1001168.h5: no cached reference checkpoint found — fitting now (10,000 iter).
+
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/10000 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+  [early-stop] overfitting detected (variance): tracked metric has been >12% above its best value for 8 consecutive check(s) -- stopping at iter 2100 instead of running to 10000, skipping the remaining 7899 iteration(s).
+[early-stop] best output variance (sliding window of 4): 0.000251056 @ iter 900  (overfitting detected -- stopped at iter 2100 of 10000)
+    saved /home/itai.p/fastmri_results/knee/checkpoints_multicoil_kavg4_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_refs/ref_file1001168.pt
+[1] file1001244.h5: no cached reference checkpoint found — fitting now (10,000 iter).
+
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/10000 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+  [early-stop] overfitting detected (variance): tracked metric has been >12% above its best value for 2 consecutive check(s) -- stopping at iter 2400 instead of running to 10000, skipping the remaining 7599 iteration(s).
+[early-stop] best output variance (sliding window of 4): 7.6773e-05 @ iter 2100  (overfitting detected -- stopped at iter 2400 of 10000)
+    saved /home/itai.p/fastmri_results/knee/checkpoints_multicoil_kavg4_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_refs/ref_file1001244.pt
+[2] file1000107.h5: no cached reference checkpoint found — fitting now (10,000 iter).
+
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/10000 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+  [early-stop] overfitting detected (variance): tracked metric has been >12% above its best value for 6 consecutive check(s) -- stopping at iter 2100 instead of running to 10000, skipping the remaining 7899 iteration(s).
+[early-stop] best output variance (sliding window of 4): 0.000117542 @ iter 1200  (overfitting detected -- stopped at iter 2100 of 10000)
+    saved /home/itai.p/fastmri_results/knee/checkpoints_multicoil_kavg4_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_refs/ref_file1000107.pt
+[3] file1000758.h5: no cached reference checkpoint found — fitting now (10,000 iter).
+
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/10000 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+  [early-stop] overfitting detected (variance): tracked metric has been >12% above its best value for 8 consecutive check(s) -- stopping at iter 2100 instead of running to 10000, skipping the remaining 7899 iteration(s).
+[early-stop] best output variance (sliding window of 4): 0.000232581 @ iter 900  (overfitting detected -- stopped at iter 2100 of 10000)
+    saved /home/itai.p/fastmri_results/knee/checkpoints_multicoil_kavg4_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_refs/ref_file1000758.pt
+
+4 reference checkpoint(s) ready: ['file1001168.h5', 'file1001244.h5', 'file1000107.h5', 'file1000758.h5']
+
+Ending Cell 45-----------------------------------------
+Executing Cell 46--------------------------------------
+Ending Cell 46-----------------------------------------
+Executing Cell 47--------------------------------------
+KAVG_INIT_MODE='guided' (guided (different_images)): fitting 4 ensemble members -- 4 guided-init, 0 random-init. Every member still runs the same accelerated (1350-iter) fit against the eval image's own k-space -- only the starting point differs.
+[0] guided from file1001168.h5: fitting accelerated (1350 iter) reconstruction ...
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/1350 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+[early-stop] best output variance (sliding window of 4): 4.97594e-05 @ iter 1349  (ran to completion (1350 iter), no stop triggered)
+[1] guided from file1001244.h5: fitting accelerated (1350 iter) reconstruction ...
+
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/1350 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+[early-stop] best output variance (sliding window of 4): 6.34681e-05 @ iter 1349  (ran to completion (1350 iter), no stop triggered)
+[2] guided from file1000107.h5: fitting accelerated (1350 iter) reconstruction ...
+
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/1350 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+[early-stop] best output variance (sliding window of 4): 6.1394e-05 @ iter 1349  (ran to completion (1350 iter), no stop triggered)
+[3] guided from file1000758.h5: fitting accelerated (1350 iter) reconstruction ...
+
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/1350 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+[early-stop] best output variance (sliding window of 4): 5.20464e-05 @ iter 1349  (ran to completion (1350 iter), no stop triggered)
+
+4 accelerated reconstructions ready for averaging (4 guided, 0 random-init).
+
+Ending Cell 47-----------------------------------------
+Executing Cell 48--------------------------------------
+Ending Cell 48-----------------------------------------
+Executing Cell 49--------------------------------------
+<Figure size 1100x400 with 2 Axes>
+PSNR vs. gradient entropy across k: Spearman rho = 0.800 (p=0.200) -- expect rho near -1 if gradient entropy is a trustworthy no-reference stand-in for PSNR on this image; near 0 (or positive) means it isn't tracking quality here.
+
+<Figure size 2400x600 with 4 Axes>
+Mean abs difference: 0.0167   Max abs difference: 0.1717
+
+Ending Cell 49-----------------------------------------
+Executing Cell 50--------------------------------------
+ConvDecoder-A (k=4) vs. its own k=1 member (single accelerated fit, guided from file1001168.h5):
+  ΔPSNR: -0.2227
+  ΔSSIM: +0.0137
+  ΔMS-SSIM: +0.0045
+  ΔVIF: +0.0884
+  ΔNMSE: -0.0003
+  ΔHFEN: +0.0299
+
+       Architecture           Image  \
+0  convdecoder_dcse  file1001650.h5   
+
+                                              Method Z_Source Loss_Type  \
+0  ConvDecoder-A (k=4, guided (different_images),...  uniform     huber   
+
+   Huber_Delta  TV_Weight       PSNR      SSIM   MS-SSIM       VIF      NMSE  \
+0       0.1192   0.000012  32.245856  0.851962  0.968616  0.943602  0.005208   
+
+       HFEN  
+0  0.248572  
+Ending Cell 50-----------------------------------------
+Executing Cell 51--------------------------------------
+Ending Cell 51-----------------------------------------
+Executing Cell 52--------------------------------------
+COMPUTE_UNCERTAINTY_MAP is False -- skipping (Section 2).
+
+Ending Cell 52-----------------------------------------
+Executing Cell 53--------------------------------------
+Ending Cell 53-----------------------------------------
+Executing Cell 54--------------------------------------
+<Figure size 1800x1200 with 6 Axes>
+PSNR:    k=1 = 32.4686   ->   k=4 avg = 32.2459   (Δ = -0.2227)
+SSIM:    k=1 = 0.8383   ->   k=4 avg = 0.8520   (Δ = +0.0137)
+
+Ending Cell 54-----------------------------------------
+Executing Cell 55--------------------------------------
+Ending Cell 55-----------------------------------------
+Executing Cell 56--------------------------------------
+KAVG_BATCH_KEEP_FIXED_SET is True but no saved selection found at /home/itai.p/fastmri_results/knee/selections/kavg_batch_selection_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_n1.json yet -- selecting now and saving it for future runs.
+
+Saved batch selection to /home/itai.p/fastmri_results/knee/selections/kavg_batch_selection_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_n1.json for reuse by future runs (as long as KAVG_BATCH_KEEP_FIXED_SET stays True).
+Batch evaluation targets (1): ['file1000010.h5']
+
+Ending Cell 56-----------------------------------------
+Executing Cell 57--------------------------------------
+
+=== Batch image 1/1: file1000010.h5 ===
+
+    [1/4] guided from file1001168.h5: fitting 1350 iterations
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/1350 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+[early-stop] best output variance (sliding window of 4): 2.8511e-05 @ iter 1349  (ran to completion (1350 iter), no stop triggered)
+    [0] guided from file1001168.h5: fit + saved /home/itai.p/fastmri_results/knee/checkpoints_multicoil_kavg4_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_batch_acc/target_file1000010__ref_file1001168.pt
+
+    [2/4] guided from file1001244.h5: fitting 1350 iterations
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/1350 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+[early-stop] best output variance (sliding window of 4): 3.39021e-05 @ iter 1349  (ran to completion (1350 iter), no stop triggered)
+    [1] guided from file1001244.h5: fit + saved /home/itai.p/fastmri_results/knee/checkpoints_multicoil_kavg4_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_batch_acc/target_file1000010__ref_file1001244.pt
+
+    [3/4] guided from file1000107.h5: fitting 1350 iterations
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/1350 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+[early-stop] best output variance (sliding window of 4): 3.24903e-05 @ iter 1349  (ran to completion (1350 iter), no stop triggered)
+    [2] guided from file1000107.h5: fit + saved /home/itai.p/fastmri_results/knee/checkpoints_multicoil_kavg4_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_batch_acc/target_file1000010__ref_file1000107.pt
+
+    [4/4] guided from file1000758.h5: fitting 1350 iterations
+optimize with adam 0.01  |  loss: huber (delta=0.1192)  |  TV weight: 1.177e-05  |  LR schedule: cosine -> 0.005
+
+Fitting:   0%|          | 0/1350 [00:00<?, ?it/s]
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+<Figure size 700x400 with 2 Axes>
+[early-stop] best output variance (sliding window of 4): 2.83582e-05 @ iter 1349  (ran to completion (1350 iter), no stop triggered)
+    [3] guided from file1000758.h5: fit + saved /home/itai.p/fastmri_results/knee/checkpoints_multicoil_kavg4_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_batch_acc/target_file1000010__ref_file1000758.pt
+
+  file1000010.h5: PSNR=33.9779  SSIM=0.8807
+
+1/1 image(s) completed. Saved to /home/itai.p/fastmri_results/knee/results/kavg_batch_k4_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_complex_weighted_exp0.csv
+
+       Architecture           Image  \
+0  convdecoder_dcse  file1000010.h5   
+
+                                              Method Z_Source Loss_Type  \
+0  ConvDecoder-A (k=4, guided (different_images),...  uniform     huber   
+
+   Huber_Delta  TV_Weight       PSNR      SSIM   MS-SSIM       VIF      NMSE  \
+0       0.1192   0.000012  33.977854  0.880742  0.975225  0.913868  0.003676   
+
+       HFEN  
+0  0.272875  
+Ending Cell 57-----------------------------------------
+Executing Cell 58--------------------------------------
+Saved summary (mean +/- std over 1 images) to /home/itai.p/fastmri_results/knee/results/kavg_batch1_convdecoder_dcse_uniform_huber_delta0.1192_tv1.177e-05_complex_weighted_exp0_summary.csv
+
+ConvDecoder-A (k=4, guided (different_images)), convdecoder_dcse, Huber(delta=0.1192)+TV(1.177e-05), uniform z -- mean +/- std over 1 images:
+  PSNR: 33.9779 +/- nan
+  SSIM: 0.8807 +/- nan
+  MS-SSIM: 0.9752 +/- nan
+  VIF: 0.9139 +/- nan
+  NMSE: 0.0037 +/- nan
+  HFEN: 0.2729 +/- nan
+
+            Mean  Std  N
+PSNR     33.9779  NaN  1
+SSIM      0.8807  NaN  1
+MS-SSIM   0.9752  NaN  1
+VIF       0.9139  NaN  1
+NMSE      0.0037  NaN  1
+HFEN      0.2729  NaN  1
+Ending Cell 58-----------------------------------------
+Executing Cell 59--------------------------------------
+Ending Cell 59-----------------------------------------
+Executing Cell 60--------------------------------------
+COMPUTE_UNCERTAINTY_MAP and/or CHECK_UNCERTAINTY_RELIABILITY is False, or RUN_BATCH_EVAL/K_AVERAGING prerequisites aren't met -- skipping (Section 2).
+
+Ending Cell 60-----------------------------------------
+Executing Cell 61--------------------------------------
+Ending Cell 61-----------------------------------------
+Executing Cell 62--------------------------------------
+FIND_EXPONENT_PARAMETERS is False -- skipping (Section 2).
+
+Ending Cell 62-----------------------------------------
+Executing Cell 63--------------------------------------
+Ending Cell 63-----------------------------------------
+Executing Cell 64--------------------------------------
+MEASURE_COMPUTE_RATIO is False -- skipping (Section 2).
+
+Ending Cell 64-----------------------------------------
+Executing Cell 65--------------------------------------
+Ending Cell 65-----------------------------------------
+Executing Cell 66--------------------------------------
+RUN_ABC_BATCH_EVAL is False -- skipping Section 13.
+
+Ending Cell 66-----------------------------------------
+Executing Cell 67--------------------------------------
+Ending Cell 67-----------------------------------------
+Executing Cell 68--------------------------------------
+Ending Cell 68-----------------------------------------
+Executing Cell 69--------------------------------------
+Selected images: []
+Checkpoint files matched (0):
+CSV rows matched:
+Derived summaries to invalidate (0):
+PREVIEW ONLY. Set CONFIRM_DELETE_FITTED=True and rerun this cell to delete saved fits/results.
+
+Ending Cell 69-----------------------------------------
+Executing Cell 70--------------------------------------
+Ending Cell 70-----------------------------------------
+Executing Cell 71--------------------------------------
+Copied + stripped outputs: /home/itai.p/ConvDeconv-MRI-project/MRI_ConvDeconv_variance_earlystop.ipynb
+Copied 2 results CSV(s) into /home/itai.p/ConvDeconv-MRI-project/results
+Appended manifest row to /home/itai.p/ConvDeconv-MRI-project/results/manifest.csv
+

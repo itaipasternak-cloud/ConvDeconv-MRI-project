@@ -1,0 +1,9 @@
+Job started on ece-silbmark2 at Wed Sep 16 12:19:22 PM IDT 2026
+Internet reachable from ece-silbmark2 -- proceeding.
+Downloading knee_multicoil_val (~94 GB)...
+** Resuming transfer from byte position 100694526932
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+Extracting knee_multicoil_val...
+slurmstepd-ece-silbmark2: error: *** JOB 90298 ON ece-silbmark2 CANCELLED AT 2026-09-16T12:46:29 ***
