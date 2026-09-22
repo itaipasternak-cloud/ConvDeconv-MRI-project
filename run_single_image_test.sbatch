@@ -16,7 +16,7 @@
 #SBATCH --job-name=convdecoder_single_image_test
 #SBATCH --output=slurm_logs/slurm-%j.out
 #SBATCH --error=slurm_logs/slurm-%j.out
-#SBATCH --account=itai.p
+#SBATCH --account=acct-preempt
 #SBATCH --partition=part-preempt
 #SBATCH --qos=qos-preempt
 #SBATCH --gres=gpu:1
@@ -32,7 +32,7 @@
 # --- Setup Environment ---
 mkdir -p slurm_logs outputs
 source ~/.bashrc
-source /home/itai.p/miniforge3/etc/profile.d/conda.sh
+source /home/projects/sipl-prj67890/miniforge3/etc/profile.d/conda.sh
 conda activate base
 
 # --- Config overrides for this run ---
