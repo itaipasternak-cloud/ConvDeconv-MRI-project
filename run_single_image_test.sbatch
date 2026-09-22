@@ -16,9 +16,10 @@
 #SBATCH --job-name=convdecoder_single_image_test
 #SBATCH --output=slurm_logs/slurm-%j.out
 #SBATCH --error=slurm_logs/slurm-%j.out
-#SBATCH --account=acct-preempt        # <-- fill in your actual account/partition/qos
+#SBATCH --account=itai.p
 #SBATCH --partition=part-preempt
-#SBATCH --qos=qos-preempt
+#SBATCH --qos=qos-preempt             # <-- run `sacctmgr -p show associations user=itai.p` on
+                                       #     the cluster to find your real QOS, then fill it in
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
@@ -32,8 +33,8 @@
 # --- Setup Environment ---
 mkdir -p slurm_logs outputs
 source ~/.bashrc
-source /path/to/your/miniforge3/etc/profile.d/conda.sh
-conda activate your-env-name
+source /home/itai.p/miniforge3/etc/profile.d/conda.sh
+conda activate base
 
 # --- Config overrides for this run ---
 # CD_ANATOMY defaults to whatever Section 2 has hardcoded (currently "knee") if left unset here --
