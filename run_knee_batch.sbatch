@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- SLURM Settings ---
-#SBATCH --job-name=convdecoder_knee_batch100
+#SBATCH --job-name=convdecoder_knee_batch
 #SBATCH --output=slurm_logs/slurm-%j.out
 #SBATCH --error=slurm_logs/slurm-%j.out
 #SBATCH --account=acct-preempt        # <-- fill in your actual account/partition/qos
@@ -39,7 +39,15 @@ export CONVDECODER_CKPT_ROOT=~/fastmri_results/knee
 
 # --- Config overrides for this run ---
 export CD_EARLY_STOP_PLOT_LIVE=False   # headless run -- see Section 2's note on this toggle
-export CD_KAVG_BATCH_SIZE=100          # ~100 images, this run
+
+# Batch size defaults to 100 (the real run), but takes this script's first positional argument
+# as an override -- no file editing needed to try a quick test first:
+#   sbatch run_knee_batch.sbatch      # real run, 100 images
+#   sbatch run_knee_batch.sbatch 1    # quick test, 1 image
+# Results are keyed by RUN_TAG only (not batch size -- see Section 12.5's own comment on this),
+# so a small test run's completed image(s) accumulate into the eventual full run's results CSV
+# instead of being wasted or overwritten.
+export CD_KAVG_BATCH_SIZE="${1:-100}"
 # EVAL_TARGET_FILENAME defaults to a reproducible random pick from CD_ANATOMY's folder (Section
 # 6/12.1) -- no need to pin one. Uncomment only if you want to force a specific, known file:
 #   export CD_EVAL_TARGET_FILENAME=file1000041.h5
@@ -50,6 +58,7 @@ export CD_KAVG_BATCH_SIZE=100          # ~100 images, this run
 
 # --- Run Code ---
 echo "Job started on $(hostname) at $(date)"
+echo "KAVG_BATCH_SIZE for this run: $CD_KAVG_BATCH_SIZE"
 
 NOTEBOOK="MRI_ConvDeconv_variance_earlystop.ipynb"
 OUT_DIR="outputs"
