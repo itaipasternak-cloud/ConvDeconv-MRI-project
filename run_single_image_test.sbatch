@@ -18,8 +18,7 @@
 #SBATCH --error=slurm_logs/slurm-%j.out
 #SBATCH --account=itai.p
 #SBATCH --partition=part-preempt
-#SBATCH --qos=qos-preempt             # <-- run `sacctmgr -p show associations user=itai.p` on
-                                       #     the cluster to find your real QOS, then fill it in
+#SBATCH --qos=qos-preempt
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
