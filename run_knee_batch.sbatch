@@ -10,9 +10,10 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
-#SBATCH --time=24:00:00               # <-- 100 images x (K-ensemble fits + accel fits) is a lot
-                                       #     more than a single-image run; adjust once you've
-                                       #     timed a handful of images and can extrapolate.
+#SBATCH --time=30:00:00               # <-- ~12.5 min/image once the K reference checkpoints are
+                                       #     cached (job 92838) extrapolates to ~21h for 100
+                                       #     images; bumped from 24h to 30h for margin, since
+                                       #     per-image time can vary (matrix size, convergence).
 
 # --- Setup Environment ---
 mkdir -p slurm_logs outputs
