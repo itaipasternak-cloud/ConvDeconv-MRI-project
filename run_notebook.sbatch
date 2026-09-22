@@ -34,6 +34,11 @@ conda activate base
 # (default, meant for an attached interactive kernel) produces nothing useful without one; the
 # plain plt.show() fallback does, and lands in the executed notebook's saved cell outputs below.
 export CD_EARLY_STOP_PLOT_LIVE=False
+# This script runs Section 12's batch pipeline (KAVG_BATCH_SIZE images x K-ensemble members each
+# fit() call) -- even one final snapshot per fit would be far too many plots to be useful, so
+# skip the early-stop diagnostic plot entirely here. Single-image sanity checks
+# (run_single_image_test.sbatch) leave this on.
+export CD_EARLY_STOP_PLOT=False
 
 # --- Run Code ---
 echo "Job started on $(hostname) at $(date)"

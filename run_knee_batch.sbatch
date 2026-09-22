@@ -39,6 +39,10 @@ export CONVDECODER_CKPT_ROOT=~/fastmri_results/knee
 
 # --- Config overrides for this run ---
 export CD_EARLY_STOP_PLOT_LIVE=False   # headless run -- see Section 2's note on this toggle
+# With up to 100 images x K-ensemble members each fit() call, even one final snapshot per fit
+# would be far too many plots to be useful -- skip the early-stop diagnostic plot entirely for
+# this batch run. Single-image sanity checks (run_single_image_test.sbatch) leave this on.
+export CD_EARLY_STOP_PLOT=False
 
 # Batch size defaults to 100 (the real run), but takes this script's first positional argument
 # as an override -- no file editing needed to try a quick test first:
