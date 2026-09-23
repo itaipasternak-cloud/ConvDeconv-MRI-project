@@ -5,17 +5,25 @@
 # Section 2) and stops there -- K_AVERAGING/RUN_BATCH_EVAL are forced off below so Section 12's
 # reference-checkpoint building and 100-image batch pipeline don't also run in this job.
 #
-# RUN_ACCEL_GRID_SEARCH itself, N_TUNING_IMAGES (21), and TUNING_PROBE_ITERS (1350) are NOT
+# This targets Run A's regime specifically -- un-guided (random-init), ACCEL_NUM_ITERS=6000 --
+# NOT the K=4 ensemble's guided/1350-iter regime (the call site in Section 6.5 passes
+# guided_init=False for exactly this reason). Both regimes share the same ACCEL_HUBER_DELTA/
+# ACCEL_TV_WEIGHT globals, so re-run this with guided_init=True (and N_TUNING_IMAGES/
+# TUNING_PROBE_ITERS turned back down) if you want the K=4-regime search instead.
+#
+# RUN_ACCEL_GRID_SEARCH itself, N_TUNING_IMAGES (13), and TUNING_PROBE_ITERS (6000) are NOT
 # CD_*-overridable (see Section 2's env-override list -- only a subset of toggles are wired
 # through it, and the grid-search toggles aren't among them), so they're already set directly in
-# the notebook itself for this run: RUN_ACCEL_GRID_SEARCH=True, N_TUNING_IMAGES=21,
-# TUNING_PROBE_ITERS=1350. Together with the 5x5=25-combination default grid
-# (GRID_HUBER_DELTA_VALUES/GRID_TV_WEIGHT_VALUES), that's 25 x 21 x 1350 iterations x ~0.139
-# sec/iteration (calibrated from job 92838's K=4 benchmark, single-fit here so no x4) =~ 27.4
-# hours, leaving ~2.5h of this job's 30h budget as margin for the confirmation pass + startup
-# overhead. Edit those three directly in the notebook (Section 2 / just above
-# run_hyperparameter_search in Section 6.5) before submitting if you want a different grid
-# size/image count/iteration budget.
+# the notebook itself for this run: RUN_ACCEL_GRID_SEARCH=True, N_TUNING_IMAGES=13,
+# TUNING_PROBE_ITERS=6000. Together with the 5x5=25-combination default grid
+# (GRID_HUBER_DELTA_VALUES/GRID_TV_WEIGHT_VALUES), that's 25 x 13 x 6000 iterations x ~0.139
+# sec/iteration (calibrated from job 92838's K=4 benchmark, single-fit here so no x4) =~ 75.3
+# hours. Pruning is off (NopPruner, not MedianPruner -- see the commit that added it) so every
+# combination actually runs the full 13 images, no early kills. Edit N_TUNING_IMAGES/
+# TUNING_PROBE_ITERS/the grid lists directly in the notebook (Section 2 / just above
+# run_hyperparameter_search in Section 6.5) before submitting if you want different sizing --
+# CHECK YOUR PARTITION'S MaxTime FIRST (`scontrol show partition part-preempt`) since 75.3h may
+# exceed it; this script requests 78h for margin, which itself may need to come down.
 
 # --- SLURM Settings ---
 #SBATCH --job-name=convdecoder_knee_grid_search
@@ -29,21 +37,28 @@
                                         # the queue afterward instead of just losing it. The grid
                                         # search itself isn't checkpointed mid-run (each Optuna
                                         # trial either completes or doesn't), so a requeue re-runs
-                                        # this job from scratch -- still better than losing a ~30h
-                                        # job outright to preemption.
+                                        # this job from scratch -- still worse to lose a ~75h job
+                                        # outright, so this is more important here than it was for
+                                        # the 30h version.
 #SBATCH --account=acct-preempt
 #SBATCH --partition=part-preempt
 #SBATCH --qos=qos-preempt
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
-#SBATCH --time=30:00:00               # <-- matches the 30h compute budget the grid was sized
-                                       #     for (see math above); this is an ESTIMATE based on a
-                                       #     single-K=4 benchmark scaled down to single-fit cost,
-                                       #     not directly measured for this search -- watch the
-                                       #     first few trials' timing (printed live per trial) and
-                                       #     adjust N_TUNING_IMAGES down for a re-run if this looks
-                                       #     like it'll miss the limit.
+#SBATCH --time=78:00:00               # <-- ~75.3h estimate (see math above) + margin. This is an
+                                       #     ESTIMATE based on a single-K=4 benchmark scaled down
+                                       #     to single-fit cost, not directly measured for this
+                                       #     search or at 6000 iterations specifically -- CHECK
+                                       #     YOUR PARTITION'S MaxTime BEFORE SUBMITTING
+                                       #     (`scontrol show partition part-preempt`); 78h may be
+                                       #     rejected outright if the partition caps lower (common
+                                       #     caps: 24h/48h/72h/7-day), in which case lower
+                                       #     N_TUNING_IMAGES in the notebook to fit. Also watch the
+                                       #     first few trials' timing (printed live per trial) once
+                                       #     it's running and requeue with a smaller
+                                       #     N_TUNING_IMAGES if it looks like it'll miss whatever
+                                       #     limit you end up with.
 
 # --- Setup Environment ---
 mkdir -p slurm_logs outputs
@@ -59,7 +74,7 @@ export CONVDECODER_CKPT_ROOT=~/fastmri_results/knee
 # --- Config overrides for this run ---
 export CD_EARLY_STOP_PLOT_LIVE=False   # headless run -- see Section 2's note on this toggle
 export CD_EARLY_STOP_PLOT=False        # same reasoning as the other batch scripts -- 25 grid
-                                        # points x 21 images each is far too many plots to be useful
+                                        # points x 13 images each is far too many plots to be useful
 
 # Stop Section 12 (reference-checkpoint building + the 100-image batch pipeline) from also
 # running after Section 6.5's grid search finishes -- this job is the search only. Re-run the
@@ -70,7 +85,7 @@ export CD_RUN_BATCH_EVAL=False
 
 # --- Run Code ---
 echo "Job started on $(hostname) at $(date)"
-echo "Running Section 6.5's ACCEL_HUBER_DELTA/ACCEL_TV_WEIGHT grid search (RUN_ACCEL_GRID_SEARCH, N_TUNING_IMAGES=21, TUNING_PROBE_ITERS=1350, 25-combination default grid -- set directly in the notebook)."
+echo "Running Section 6.5's ACCEL_HUBER_DELTA/ACCEL_TV_WEIGHT grid search (RUN_ACCEL_GRID_SEARCH, guided_init=False / Run A's regime, N_TUNING_IMAGES=13, TUNING_PROBE_ITERS=6000, 25-combination default grid -- set directly in the notebook)."
 
 NOTEBOOK="MRI_ConvDeconv_variance_earlystop.ipynb"
 OUT_DIR="outputs"
