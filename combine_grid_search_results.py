@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Merge per-slice grid-search outputs (run_knee_grid_search_g1..g5.sbatch, and the edge-extended
-run_knee_grid_search_e1..e5.sbatch re-run) into ONE combined trial-history CSV and ONE combined
+"""Merge per-slice grid-search outputs (run_knee_grid_search_g1..g5.sbatch, and the untested-combo
+run_knee_grid_search_u1..u14.sbatch re-run) into ONE combined trial-history CSV and ONE combined
 best-params JSON.
 
 Run this AFTER the jobs you want merged have finished. Each job wrote its own tagged files
-(optuna_best_huber_tv_accel_*_g1.json / _e1.json / etc, and matching trial-history CSVs) rather
+(optuna_best_huber_tv_accel_*_g1.json / _u1.json / etc, and matching trial-history CSVs) rather
 than sharing one file live -- concurrent processes writing the same path would race and silently
 lose whichever finished last. This script is the safe way to get back down to one file per output
 once there's no more concurrent writing happening. Default --tags covers g1,g2,g3,g5 (g4 never
-completed in the first pass) plus e1-e5 (the edge-extended re-run) -- pass --tags explicitly to
-merge a different subset.
+completed in the first pass) plus u1-u14 (every untested cell in the union of the original and
+widened delta/tv grids) -- pass --tags explicitly to merge a different subset.
 
 Usage:
     python3 combine_grid_search_results.py [--ckpt-root ~/fastmri_results/knee] [--tags g1,g2,...]
@@ -30,9 +30,11 @@ def main():
              "~/fastmri_results/knee).",
     )
     parser.add_argument(
-        "--tags", default="g1,g2,g3,g5,e1,e2,e3,e4,e5",
+        "--tags",
+        default="g1,g2,g3,g5," + ",".join(f"u{i}" for i in range(1, 15)),
         help="Comma-separated GRID_SEARCH_JOB_TAG values to merge (default covers the first pass's "
-             "completed slices -- g4 never finished -- plus the edge-extended e1-e5 re-run).",
+             "completed slices -- g1,g2,g3,g5; g4 never finished -- plus the untested-combo "
+             "re-run u1-u14, together the full 81-combo union of the old and widened grids).",
     )
     args = parser.parse_args()
 

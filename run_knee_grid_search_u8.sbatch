@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# 2 of 5 in the edge-extended re-run -- see run_knee_grid_search_e1.sbatch for the full
-# rationale. This job: huber_delta = 0.05 (all 5 tv_weight values).
+# Job 8 of 14 in the untested-combo re-run -- see run_knee_grid_search_u1.sbatch for
+# the full rationale. This job: huber_delta = 0.2 (tv_weight in [2e-06, 4e-06, 5e-06, 7e-06, 1.177e-05], 5 combinations).
 
 # --- SLURM Settings ---
-#SBATCH --job-name=convdecoder_knee_grid_search_e2
+#SBATCH --job-name=convdecoder_knee_grid_search_u8
 #SBATCH --output=slurm_logs/slurm-%j.out
 #SBATCH --error=slurm_logs/slurm-%j.out
 #SBATCH --open-mode=append             # part-preempt kills + requeues the SAME job ID on
@@ -43,23 +43,23 @@ export CD_EARLY_STOP_PLOT=False
 export CD_K_AVERAGING=False            # stop Section 12 (ref-checkpoint building + 100-image
 export CD_RUN_BATCH_EVAL=False         # batch pipeline) from also running after the search
 
-# --- Grid-search config (this job's slice: huber_delta=0.05 only) ---
+# --- Grid-search config (this job's slice: huber_delta=0.2 only) ---
 export CD_RUN_ACCEL_GRID_SEARCH=True
 export CD_N_TUNING_IMAGES=13
 export CD_TUNING_PROBE_ITERS=6000
-export CD_GRID_HUBER_DELTA_VALUES="[0.05]"
-export CD_GRID_TV_WEIGHT_VALUES="[2e-06, 5e-06, 1.177e-05, 2.5e-05, 6e-05]"
-export CD_GRID_SEARCH_JOB_TAG=e2
+export CD_GRID_HUBER_DELTA_VALUES="[0.2]"
+export CD_GRID_TV_WEIGHT_VALUES="[2e-06, 4e-06, 5e-06, 7e-06, 1.177e-05]"
+export CD_GRID_SEARCH_JOB_TAG=u8
 
 # --- Run Code ---
 echo "Job started on $(hostname) at $(date)"
-echo "GRID SEARCH 2/5: ACCEL_HUBER_DELTA/ACCEL_TV_WEIGHT, un-guided/6000-iter regime, delta=0.05 x all 5 tv values (5 combinations)."
+echo "GRID SEARCH 8/14: ACCEL_HUBER_DELTA/ACCEL_TV_WEIGHT, un-guided/6000-iter regime, delta=0.2 x tv_weight in [2e-06, 4e-06, 5e-06, 7e-06, 1.177e-05] (5 combinations)."
 
 NOTEBOOK="MRI_ConvDeconv_variance_earlystop.ipynb"
 OUT_DIR="outputs"
 STAMP="${SLURM_JOB_ID:-$(date +%Y%m%d_%H%M%S)}"
 FILTERED_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_${STAMP}_filtered.ipynb"
-OUT_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_knee_gridsearch_e2_${STAMP}.ipynb"
+OUT_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_knee_gridsearch_u8_${STAMP}.ipynb"
 
 jupyter nbconvert \
     --to notebook \
@@ -78,6 +78,6 @@ rm -f "$FILTERED_NOTEBOOK"
 
 echo "Finished at $(date)."
 echo "Output notebook: $OUT_NOTEBOOK"
-echo "Winning params (this slice): \$CONVDECODER_CKPT_ROOT/optuna_best_huber_tv_accel_*_e2.json"
-echo "Trial history (this slice): \$CONVDECODER_CKPT_ROOT/tuning/optuna_trials_huber_tv_accel_*_e2.csv"
-echo "Run combine_grid_search_results.py once all 5 e2-g5 jobs finish to merge into one file."
+echo "Winning params (this slice): \$CONVDECODER_CKPT_ROOT/optuna_best_huber_tv_accel_*_u8.json"
+echo "Trial history (this slice): \$CONVDECODER_CKPT_ROOT/tuning/optuna_trials_huber_tv_accel_*_u8.csv"
+echo "Run combine_grid_search_results.py once all 5 u8-g5 jobs finish to merge into one file."
