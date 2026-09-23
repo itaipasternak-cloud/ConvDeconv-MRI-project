@@ -37,9 +37,15 @@ def main():
     tags = args.tags.split(",")
 
     # --- 1. Merge trial-history CSVs ---
+    # Named "..._full_..." not "..._accel_..." -- run_hyperparameter_search's trials_csv_path uses
+    # _regime_suffix = "accel" if guided_init else "full", and this grid search deliberately runs
+    # with guided_init=False (Run A's un-guided regime), so the CSVs land under the "full" tag
+    # despite still searching ACCEL_HUBER_DELTA/ACCEL_TV_WEIGHT. The best-params JSON is unaffected
+    # by this quirk -- ACCEL_OPTUNA_BEST_PATH's own filename is always "accel"-tagged regardless of
+    # guided_init, so that glob below stays as "accel".
     all_trials = []
     for tag in tags:
-        pattern = os.path.join(tuning_dir, f"optuna_trials_huber_tv_accel_*_{tag}.csv")
+        pattern = os.path.join(tuning_dir, f"optuna_trials_huber_tv_full_*_{tag}.csv")
         matches = glob.glob(pattern)
         if not matches:
             print(f"WARNING: no trial-history CSV found for tag {tag!r} (pattern: {pattern})")
@@ -65,9 +71,9 @@ def main():
     # Infer ARCHITECTURE/Z_SOURCE from one of the matched filenames so the combined file's name
     # follows the same convention as the per-slice files.
     example_name = os.path.basename(matches[0])
-    # optuna_trials_huber_tv_accel_{ARCHITECTURE}_{Z_SOURCE}_{tag}.csv
-    stem = example_name[len("optuna_trials_huber_tv_accel_"):-len(f"_{tag}.csv")]
-    combined_csv_path = os.path.join(tuning_dir, f"optuna_trials_huber_tv_accel_{stem}_combined.csv")
+    # optuna_trials_huber_tv_full_{ARCHITECTURE}_{Z_SOURCE}_{tag}.csv
+    stem = example_name[len("optuna_trials_huber_tv_full_"):-len(f"_{tag}.csv")]
+    combined_csv_path = os.path.join(tuning_dir, f"optuna_trials_huber_tv_full_{stem}_combined.csv")
     combined_df.to_csv(combined_csv_path, index=False)
     print(f"\nWrote combined trial history ({len(combined_df)} trials across {len(all_trials)} "
           f"slice(s)) to {combined_csv_path}")
