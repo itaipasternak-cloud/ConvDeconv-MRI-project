@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Merge the 5 per-slice grid-search outputs (run_knee_grid_search_g1..g5.sbatch) into ONE
-combined trial-history CSV and ONE combined best-params JSON.
+"""Merge per-slice grid-search outputs (run_knee_grid_search_g1..g5.sbatch, and the edge-extended
+run_knee_grid_search_e1..e5.sbatch re-run) into ONE combined trial-history CSV and ONE combined
+best-params JSON.
 
-Run this AFTER all 5 g1-g5 jobs have finished. Each job wrote its own tagged files
-(optuna_best_huber_tv_accel_*_g1.json .. _g5.json, and matching trial-history CSVs) rather than
-sharing one file live -- five concurrent processes writing the same path would race and silently
+Run this AFTER the jobs you want merged have finished. Each job wrote its own tagged files
+(optuna_best_huber_tv_accel_*_g1.json / _e1.json / etc, and matching trial-history CSVs) rather
+than sharing one file live -- concurrent processes writing the same path would race and silently
 lose whichever finished last. This script is the safe way to get back down to one file per output
-once there's no more concurrent writing happening.
+once there's no more concurrent writing happening. Default --tags covers g1,g2,g3,g5 (g4 never
+completed in the first pass) plus e1-e5 (the edge-extended re-run) -- pass --tags explicitly to
+merge a different subset.
 
 Usage:
-    python3 combine_grid_search_results.py [--ckpt-root ~/fastmri_results/knee]
+    python3 combine_grid_search_results.py [--ckpt-root ~/fastmri_results/knee] [--tags g1,g2,...]
 """
 import argparse
 import glob
@@ -27,8 +30,9 @@ def main():
              "~/fastmri_results/knee).",
     )
     parser.add_argument(
-        "--tags", default="g1,g2,g3,g4,g5",
-        help="Comma-separated GRID_SEARCH_JOB_TAG values to merge (default: g1,g2,g3,g4,g5).",
+        "--tags", default="g1,g2,g3,g5,e1,e2,e3,e4,e5",
+        help="Comma-separated GRID_SEARCH_JOB_TAG values to merge (default covers the first pass's "
+             "completed slices -- g4 never finished -- plus the edge-extended e1-e5 re-run).",
     )
     args = parser.parse_args()
 
