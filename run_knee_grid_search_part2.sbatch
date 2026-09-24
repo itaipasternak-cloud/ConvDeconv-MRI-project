@@ -41,7 +41,7 @@ export CD_K_AVERAGING=False
 export CD_RUN_BATCH_EVAL=False
 
 # --- Grid-search config (this job's slice) ---
-export CD_RUN_ACCEL_GRID_SEARCH=True
+export CD_RUN_GRID_SEARCH=True
 export CD_N_TUNING_IMAGES=13
 export CD_TUNING_PROBE_ITERS=6000
 export CD_GRID_HUBER_DELTA_VALUES="[0.2, 0.36]"

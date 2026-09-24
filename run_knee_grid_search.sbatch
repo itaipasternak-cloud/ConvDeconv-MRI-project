@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Runs Section 6.5's new exhaustive grid search over ACCEL_HUBER_DELTA/ACCEL_TV_WEIGHT
-# (RUN_ACCEL_GRID_SEARCH, added alongside GRID_HUBER_DELTA_VALUES/GRID_TV_WEIGHT_VALUES in
+# (RUN_GRID_SEARCH, added alongside GRID_HUBER_DELTA_VALUES/GRID_TV_WEIGHT_VALUES in
 # Section 2) and stops there -- K_AVERAGING/RUN_BATCH_EVAL are forced off below so Section 12's
 # reference-checkpoint building and 100-image batch pipeline don't also run in this job.
 #
@@ -11,10 +11,10 @@
 # ACCEL_TV_WEIGHT globals, so re-run this with guided_init=True (and N_TUNING_IMAGES/
 # TUNING_PROBE_ITERS turned back down) if you want the K=4-regime search instead.
 #
-# RUN_ACCEL_GRID_SEARCH itself, N_TUNING_IMAGES (13), and TUNING_PROBE_ITERS (6000) are NOT
+# RUN_GRID_SEARCH itself, N_TUNING_IMAGES (13), and TUNING_PROBE_ITERS (6000) are NOT
 # CD_*-overridable (see Section 2's env-override list -- only a subset of toggles are wired
 # through it, and the grid-search toggles aren't among them), so they're already set directly in
-# the notebook itself for this run: RUN_ACCEL_GRID_SEARCH=True, N_TUNING_IMAGES=13,
+# the notebook itself for this run: RUN_GRID_SEARCH=True, N_TUNING_IMAGES=13,
 # TUNING_PROBE_ITERS=6000. Together with the 5x5=25-combination default grid
 # (GRID_HUBER_DELTA_VALUES/GRID_TV_WEIGHT_VALUES), that's 25 x 13 x 6000 iterations x ~0.139
 # sec/iteration (calibrated from job 92838's K=4 benchmark, single-fit here so no x4) =~ 75.3
@@ -85,7 +85,7 @@ export CD_RUN_BATCH_EVAL=False
 
 # --- Run Code ---
 echo "Job started on $(hostname) at $(date)"
-echo "Running Section 6.5's ACCEL_HUBER_DELTA/ACCEL_TV_WEIGHT grid search (RUN_ACCEL_GRID_SEARCH, guided_init=False / Run A's regime, N_TUNING_IMAGES=13, TUNING_PROBE_ITERS=6000, 25-combination default grid -- set directly in the notebook)."
+echo "Running Section 6.5's ACCEL_HUBER_DELTA/ACCEL_TV_WEIGHT grid search (RUN_GRID_SEARCH, guided_init=False / Run A's regime, N_TUNING_IMAGES=13, TUNING_PROBE_ITERS=6000, 25-combination default grid -- set directly in the notebook)."
 
 NOTEBOOK="MRI_ConvDeconv_variance_earlystop.ipynb"
 OUT_DIR="outputs"

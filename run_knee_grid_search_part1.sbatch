@@ -7,7 +7,7 @@
 # Same regime as the single-job version -- un-guided (random-init), ACCEL_NUM_ITERS=6000 (Run A's
 # config), NOT the K=4 ensemble's guided/1350-iter regime.
 #
-# All the grid-search toggles (RUN_ACCEL_GRID_SEARCH, N_TUNING_IMAGES, TUNING_PROBE_ITERS,
+# All the grid-search toggles (RUN_GRID_SEARCH, N_TUNING_IMAGES, TUNING_PROBE_ITERS,
 # GRID_HUBER_DELTA_VALUES, GRID_TV_WEIGHT_VALUES, GRID_SEARCH_JOB_TAG) are now CD_*-overridable
 # (added alongside this split), so unlike the single-job script this one does NOT require editing
 # the notebook directly -- everything's driven by the exports below, and both jobs can run off the
@@ -73,7 +73,7 @@ export CD_K_AVERAGING=False            # stop Section 12 (ref-checkpoint buildin
 export CD_RUN_BATCH_EVAL=False         # batch pipeline) from also running after the search
 
 # --- Grid-search config (this job's slice) ---
-export CD_RUN_ACCEL_GRID_SEARCH=True
+export CD_RUN_GRID_SEARCH=True
 export CD_N_TUNING_IMAGES=13
 export CD_TUNING_PROBE_ITERS=6000
 export CD_GRID_HUBER_DELTA_VALUES="[0.04, 0.07, 0.1192]"
