@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""Rank the (huber_delta, tv_weight) combinations of a finished grid search (notebook Section 6.5,
+run_knee_grid_search.sbatch) and pick the winner.
+
+Reads CKPT_ROOT/grid_search/<name>/manifest.json + results_shard*.csv (one row per image x
+combination, all six metrics). Runs on the cluster login node -- no GPU, just pandas.
+
+How the combined score works
+----------------------------
+Every combination was fit on the same images, so each image's own difficulty is removed first:
+for every image and metric, subtract that image's mean over all combinations. What's left is how
+much better/worse a combination did than average ON THAT IMAGE. Each metric is then divided by
+its typical spread between combinations (pooled std over all images), so all metrics are in the
+same units ("typical between-setting differences") whatever their native scale. The score is the
+weighted sum, averaged over images:
+
+    score = 0.35*PSNR + 0.35*SSIM + 0.15*VIF + 0.15*(-HFEN)     (default --weights)
+
+PSNR and SSIM carry most of the weight; VIF and HFEN guard against over-smoothing (lost fine
+texture). MS-SSIM and NMSE are reported but not scored (redundant with SSIM and PSNR). The score
+depends only on this search's own results -- no reference to an earlier "known good" setting.
+
+Guard: the winner must not be clearly worse (paired, ~95%) than the best combination on PSNR or
+on SSIM, so a VIF/HFEN gain can't buy a real PSNR/SSIM loss. Combinations that diverged on any
+image are never eligible.
+
+Usage:
+    python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/grid_v2
+    python3 analyze_grid_search.py --grid-dir ... --weights PSNR=0.5,SSIM=0.5 --plot
+"""
+import argparse
+import glob
+import json
+import os
+
+import numpy as np
+import pandas as pd
+
+METRICS = ["PSNR", "SSIM", "MS-SSIM", "VIF", "NMSE", "HFEN"]
+HIGHER_IS_BETTER = {"PSNR": True, "SSIM": True, "MS-SSIM": True, "VIF": True,
+                    "NMSE": False, "HFEN": False}
+DEFAULT_WEIGHTS = "PSNR=0.35,SSIM=0.35,VIF=0.15,HFEN=0.15"
+Z = 2.0  # ~95% two-sided for "clearly worse" / "tied" checks
+
+
+def parse_weights(text):
+    weights = {}
+    for part in text.split(","):
+        name, value = part.split("=")
+        name = name.strip()
+        assert name in METRICS, f"unknown metric {name!r} in --weights (choose from {METRICS})"
+        weights[name] = float(value)
+    total = sum(weights.values())
+    return {k: v / total for k, v in weights.items()}
+
+
+def paired_diff(per_image, a, b):
+    """Mean and standard error of (combo a - combo b) over images where both have a value."""
+    d = (per_image[a] - per_image[b]).dropna()
+    return d.mean(), d.std(ddof=1) / np.sqrt(len(d))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--grid-dir", required=True, help="CKPT_ROOT/grid_search/<GRID_SEARCH_NAME>")
+    parser.add_argument("--weights", default=DEFAULT_WEIGHTS,
+                        help=f"metric weights for the combined score (default {DEFAULT_WEIGHTS})")
+    parser.add_argument("--allow-partial", action="store_true",
+                        help="analyze an unfinished search, using only images every combination has finished")
+    parser.add_argument("--plot", action="store_true", help="save heatmaps (needs matplotlib)")
+    args = parser.parse_args()
+
+    grid_dir = os.path.expanduser(args.grid_dir)
+    weights = parse_weights(args.weights)
+    with open(os.path.join(grid_dir, "manifest.json")) as f:
+        manifest = json.load(f)
+    deltas, tvs = manifest["huber_delta_values"], manifest["tv_weight_values"]
+    combos = [(d, tv) for d in deltas for tv in tvs]
+    n_images = len(manifest["images"])
+
+    shard_files = sorted(glob.glob(os.path.join(grid_dir, "results_shard*.csv")))
+    assert shard_files, f"no results_shard*.csv in {grid_dir}"
+    df = pd.concat([pd.read_csv(p) for p in shard_files], ignore_index=True)
+    df = df.drop_duplicates(subset=["Image", "Combo"], keep="last")
+
+    # --- completeness: only images that every combination has finished are comparable ---
+    per_image_count = df.groupby("Image")["Combo"].nunique()
+    complete_images = sorted(per_image_count[per_image_count == len(combos)].index)
+    print(f"{len(df)}/{n_images * len(combos)} fits recorded; {len(complete_images)}/{n_images} "
+          f"images finished for all {len(combos)} combinations.")
+    if len(complete_images) < n_images:
+        if not args.allow_partial:
+            raise SystemExit("Search not finished -- wait for all shards, or pass --allow-partial "
+                             "to look at the images finished so far.")
+        print("  --allow-partial: analyzing the finished images only.")
+    assert len(complete_images) >= 3, "need at least 3 fully finished images"
+    df = df[df["Image"].isin(complete_images)]
+
+    diverged = df[df["Status"] != "ok"].groupby("Combo").size()
+    if len(diverged):
+        print("Diverged fits (these combinations are not eligible):")
+        for c, n in diverged.items():
+            print(f"  delta={combos[c][0]:g} tv={combos[c][1]:g}: {n} image(s)")
+
+    # --- per-metric image x combo tables ---
+    tables = {m: df.pivot(index="Image", columns="Combo", values=m) for m in METRICS}
+
+    # --- combined score: remove each image's difficulty, then put metrics on a common scale ---
+    # Dividing by each metric's own spread is what makes the weights scale-free: SSIM moves by
+    # hundredths between settings while PSNR moves by tenths of a dB, so raw weights would let
+    # PSNR swamp SSIM. After this, one unit of any metric = its typical between-setting change.
+    score = 0
+    spreads = {}
+    for m, w in weights.items():
+        centered = tables[m].sub(tables[m].mean(axis=1), axis=0)
+        spread = np.nanstd(centered.values, ddof=1)
+        spreads[m] = spread
+        z = centered / spread if spread > 0 else centered * 0
+        score = score + w * (z if HIGHER_IS_BETTER[m] else -z)
+    tables["Score"] = score
+    print("\nCommon scale -- one score unit equals this much of each metric (its typical change "
+          "between settings on the same image):")
+    for m, spread in spreads.items():
+        print(f"  {m:<5} {spread:.4g}   (weight {weights[m]:.2f})")
+
+    rows = []
+    for c, (d, tv) in enumerate(combos):
+        r = {"Combo": c, "Huber_Delta": d, "TV_Weight": tv,
+             "Diverged": int(diverged.get(c, 0))}
+        for m in METRICS + ["Score"]:
+            col = tables[m][c].dropna()
+            r[m] = col.mean()
+            r[f"{m}_SE"] = col.std(ddof=1) / np.sqrt(len(col))
+        rows.append(r)
+    summary = pd.DataFrame(rows)
+
+    # --- guard: not clearly worse than the best combination on PSNR or SSIM ---
+    best_psnr = int(summary["PSNR"].idxmax())
+    best_ssim = int(summary["SSIM"].idxmax())
+    for m, best in (("PSNR", best_psnr), ("SSIM", best_ssim)):
+        ok = []
+        for c in summary["Combo"]:
+            mean, se = paired_diff(tables[m], c, best) if c != best else (0.0, 0.0)
+            ok.append(mean + Z * se >= 0)
+        summary[f"OK_vs_best_{m}"] = ok
+    summary["Eligible"] = (summary["Diverged"] == 0) & summary["OK_vs_best_PSNR"] & summary["OK_vs_best_SSIM"]
+
+    ranked = summary.sort_values("Score", ascending=False)
+    eligible = ranked[ranked["Eligible"]]
+    if eligible.empty:
+        print("\nWARNING: no combination passes the PSNR/SSIM guard -- falling back to the top score.")
+        eligible = ranked[ranked["Diverged"] == 0]
+    winner = eligible.iloc[0]
+    w_combo = int(winner["Combo"])
+
+    # --- report ---
+    pd.set_option("display.width", 200)
+    show = ["Huber_Delta", "TV_Weight", "Score", "PSNR", "PSNR_SE", "SSIM", "VIF", "HFEN",
+            "MS-SSIM", "NMSE", "Eligible"]
+    print(f"\nWeights: {', '.join(f'{k}={v:.2f}' for k, v in weights.items())}   "
+          f"(n={len(complete_images)} images, paired)")
+    print(ranked[show].to_string(index=False, float_format=lambda v: f"{v:.4g}"))
+
+    print(f"\nBest mean PSNR: delta={combos[best_psnr][0]:g} tv={combos[best_psnr][1]:g} "
+          f"({summary.loc[best_psnr, 'PSNR']:.3f} dB)")
+    print(f"Best mean SSIM: delta={combos[best_ssim][0]:g} tv={combos[best_ssim][1]:g} "
+          f"({summary.loc[best_ssim, 'SSIM']:.4f})")
+
+    tied = []
+    for c in summary["Combo"]:
+        if c == w_combo or summary.loc[c, "Diverged"]:
+            continue
+        mean, se = paired_diff(tables["Score"], w_combo, c)
+        if mean - Z * se < 0:
+            tied.append(c)
+    print(f"\nWINNER: HUBER_DELTA = {winner['Huber_Delta']:g}, TV_WEIGHT = {winner['TV_Weight']:g}")
+    print(f"  PSNR {winner['PSNR']:.3f} dB, SSIM {winner['SSIM']:.4f}, VIF {winner['VIF']:.4f}, "
+          f"HFEN {winner['HFEN']:.4g}")
+    if tied:
+        print(f"  Statistically tied with {len(tied)} other combination(s) on the score: "
+              + ", ".join(f"({combos[c][0]:g}, {combos[c][1]:g})" for c in tied)
+              + " -- differences among these are within noise.")
+    else:
+        print("  Clearly ahead of every other combination on the score.")
+    edges = []
+    if winner["Huber_Delta"] in (deltas[0], deltas[-1]):
+        edges.append("huber_delta")
+    if winner["TV_Weight"] in (tvs[0], tvs[-1]):
+        edges.append("tv_weight")
+    if edges:
+        print(f"  NOTE: the winner is on the edge of the grid for {' and '.join(edges)} -- the best "
+              f"value may lie outside the range searched; consider extending it that way.")
+
+    summary_path = os.path.join(grid_dir, "summary.csv")
+    ranked.to_csv(summary_path, index=False)
+    best_path = os.path.join(grid_dir, "best.json")
+    with open(best_path, "w") as f:
+        json.dump({"huber_delta": float(winner["Huber_Delta"]), "tv_weight": float(winner["TV_Weight"]),
+                   "weights": weights, "n_images": len(complete_images),
+                   "tied_with": [list(combos[c]) for c in tied],
+                   "metrics": {m: float(winner[m]) for m in METRICS}}, f, indent=1)
+    print(f"\nSaved {summary_path} and {best_path}.")
+
+    if args.plot:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
+        for ax, m in zip(axes, ["Score", "PSNR", "SSIM"]):
+            grid = summary.pivot(index="Huber_Delta", columns="TV_Weight", values=m)
+            im = ax.imshow(grid.values, cmap="viridis", origin="lower")
+            ax.set_xticks(range(len(tvs)), [f"{v:g}" for v in tvs], rotation=45)
+            ax.set_yticks(range(len(deltas)), [f"{v:g}" for v in deltas])
+            ax.set_xlabel("tv_weight")
+            ax.set_ylabel("huber_delta")
+            ax.set_title(m)
+            for i in range(len(deltas)):
+                for j in range(len(tvs)):
+                    ax.text(j, i, f"{grid.values[i, j]:.3g}", ha="center", va="center",
+                            color="white", fontsize=8)
+            fig.colorbar(im, ax=ax, shrink=0.8)
+        fig.tight_layout()
+        plot_path = os.path.join(grid_dir, "grid_heatmaps.png")
+        fig.savefig(plot_path, dpi=130)
+        print(f"Saved {plot_path}.")
+
+
+if __name__ == "__main__":
+    main()
