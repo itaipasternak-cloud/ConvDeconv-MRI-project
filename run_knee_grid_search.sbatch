@@ -17,6 +17,11 @@
 # Results:  python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/grid_v2 --plot
 #
 # If you change the number of tasks, change BOTH --array and GRID_NUM_SHARDS below.
+#
+# Rerunning ONE shard that failed (e.g. shard 5), split over several GPUs so it finishes faster --
+# fits it already recorded are skipped:
+#   sbatch --array=0-3 --export=ALL,RERUN_SHARD=5,RERUN_PARTS=4 run_knee_grid_search.sbatch
+# (--array must be 0 .. RERUN_PARTS-1.)
 
 # --- SLURM Settings ---
 #SBATCH --job-name=convdecoder_knee_grid
@@ -41,8 +46,20 @@ source ~/.bashrc
 source /home/itai.p/miniforge3/etc/profile.d/conda.sh
 conda activate base
 
-if [ -n "$SLURM_ARRAY_TASK_COUNT" ] && [ "$SLURM_ARRAY_TASK_COUNT" -ne "$GRID_NUM_SHARDS" ]; then
-    echo "ERROR: --array has $SLURM_ARRAY_TASK_COUNT tasks but GRID_NUM_SHARDS=$GRID_NUM_SHARDS -- make them match." >&2
+TASK="${SLURM_ARRAY_TASK_ID:-0}"
+if [ -n "$RERUN_SHARD" ]; then
+    # Rerun mode: this task is part $TASK of $RERUN_PARTS of shard $RERUN_SHARD.
+    export CD_GRID_SHARD_INDEX="$RERUN_SHARD"
+    export CD_GRID_SUB_INDEX="$TASK"
+    export CD_GRID_SUB_COUNT="${RERUN_PARTS:?set RERUN_PARTS together with RERUN_SHARD}"
+    LIMIT="$RERUN_PARTS"
+else
+    export CD_GRID_SHARD_INDEX="$TASK"
+    LIMIT="$GRID_NUM_SHARDS"
+fi
+# Checks the task NUMBER, not the task count, so resubmitting a subset (e.g. --array=5) works.
+if [ "$TASK" -ge "$LIMIT" ]; then
+    echo "ERROR: array task $TASK is out of range (must be below $LIMIT) -- check --array." >&2
     exit 1
 fi
 
@@ -60,15 +77,14 @@ export CD_RUN_BATCH_EVAL=False
 # --- Grid search (grid values, image count and iterations come from Section 2's defaults) ---
 export CD_RUN_GRID_SEARCH=True
 export CD_GRID_SEARCH_NAME=grid_v2
-export CD_GRID_SHARD_INDEX="${SLURM_ARRAY_TASK_ID:-0}"
 export CD_GRID_NUM_SHARDS="$GRID_NUM_SHARDS"
 
 # --- Run Code ---
-echo "Job started on $(hostname) at $(date) -- grid shard $CD_GRID_SHARD_INDEX of $CD_GRID_NUM_SHARDS"
+echo "Job started on $(hostname) at $(date) -- grid shard $CD_GRID_SHARD_INDEX of $CD_GRID_NUM_SHARDS${RERUN_SHARD:+ (part $CD_GRID_SUB_INDEX of $CD_GRID_SUB_COUNT)}"
 
 NOTEBOOK="MRI_ConvDeconv_variance_earlystop.ipynb"
 OUT_DIR="outputs"
-STAMP="${SLURM_ARRAY_JOB_ID:-$(date +%Y%m%d_%H%M%S)}_${CD_GRID_SHARD_INDEX}"
+STAMP="${SLURM_ARRAY_JOB_ID:-$(date +%Y%m%d_%H%M%S)}_${CD_GRID_SHARD_INDEX}${RERUN_SHARD:+_part${CD_GRID_SUB_INDEX}}"
 FILTERED_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_${STAMP}_filtered.ipynb"
 OUT_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_knee_grid_${STAMP}.ipynb"
 

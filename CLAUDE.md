@@ -55,7 +55,8 @@ Metrics everywhere: PSNR, SSIM, MS-SSIM, VIF (higher better), NMSE, HFEN (lower 
 Colab (Google Drive paths) is still supported by the notebook but is no longer the main path.
 
 Every sbatch script does the same thing: `jupyter nbconvert` strips cells tagged `skip-slurm`
-(Sections 7-11 single-image demo) and `no-unattended` (Section 15 git push), then `papermill`
+(Sections 7-11 single-image demo) and `no-unattended` (Section 2.1 config GUI, Section 15 git push),
+then `papermill`
 executes the notebook headless into `outputs/`. Config is changed per job via `CD_<NAME>`
 environment variables (e.g. `CD_K_VALUE=1`), registered in Section 2's override loop -- add a
 new toggle to that list if a job needs to override it.
@@ -75,6 +76,8 @@ Main scripts:
 - `run_knee_grid_search.sbatch` -- the grid search as one SLURM array (12 tasks, max 12 at once --
   the cluster is shared, keep it under ~10-15 simultaneous jobs). ~175 GPU-hours, ~15h per task.
   Then `python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/grid_v2 --plot`.
+  A failed shard can be rerun split over several GPUs, skipping fits already recorded:
+  `sbatch --array=0-3 --export=ALL,RERUN_SHARD=5,RERUN_PARTS=4 run_knee_grid_search.sbatch`.
 
 ## Current state (as of 2026-09-24)
 
@@ -87,7 +90,10 @@ Main scripts:
 - `KAVG_BATCH_MANUAL_EXCLUDE` holds 6 knee files dropped from the batch on purpose.
 - **The grid winner made the 100-image batch results worse**: Run A 32.3 dB, K-ensemble 33.3 dB
   PSNR. Replaced by the rebuilt grid search (Section 6.5, `grid_v2`): same fit/scoring path as the
-  batch, per-image metrics saved, winner chosen by `analyze_grid_search.py`. A separate set of
+  batch, per-image metrics saved, winner chosen by `analyze_grid_search.py`. Submitted
+  2026-09-28 as array job 96483 (logs `slurm_logs/grid-96483_<0-11>.out`); shards 0-4 and 6-11
+  finished, shard 5 died before its first fit (papermill IOPub timeout in the GUI cell) and is
+  rerun in 4 parts. A separate set of
   values for the K-ensemble regime is planned later.
 - Image budget: ~200 knee CORPD_FBK/15-coil files (val + train_batch_0). One experiment per
   group uses ~141 (7 demo/default + 4 refs + 100 batch + 30 tuning). Brain AXT2 4-coil (165) and
