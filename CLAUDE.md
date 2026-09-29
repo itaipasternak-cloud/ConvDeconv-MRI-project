@@ -78,6 +78,7 @@ Main scripts:
   Then `python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/grid_v2 --plot`.
   A failed shard can be rerun split over several GPUs, skipping fits already recorded:
   `sbatch --array=0-3 --export=ALL,RERUN_SHARD=5,RERUN_PARTS=4 run_knee_grid_search.sbatch`.
+  Each search's name/grid/image reuse is set in Section 2 (`GRID_SEARCH_NAME`, `GRID_REUSE_FROM`, ...).
 
 ## Current state (as of 2026-09-24)
 
@@ -93,7 +94,15 @@ Main scripts:
   batch, per-image metrics saved, winner chosen by `analyze_grid_search.py`. Submitted
   2026-09-28 as array job 96483 (logs `slurm_logs/grid-96483_<0-11>.out`); shards 0-4 and 6-11
   finished, shard 5 died before its first fit (papermill IOPub timeout in the GUI cell) and is
-  rerun in 4 parts. A separate set of
+  rerun in 4 parts (job 96813). grid_v2 result: top ~12 of 25 statistically tied within ~0.4 dB
+  PSNR (~32.6-33.0 dB); best at the upper edges (delta 0.65, tv 7.5e-5). Old default ~(0.14,
+  1.2e-5) = 32.70 dB, old winner ~(0.3, 3e-5) = 32.47 dB -- confirms the old winner was worse.
+  Follow-up grid_v3: delta [0.65, 1.3, 2.6, 100 (=MSE)] x tv [3e-5, 7.5e-5, 1.9e-4], same 30
+  images, 2 shared pairs copied from grid_v2 (GRID_REUSE_FROM).
+- The two old 100-image lists (keyed by 0.1192 and 0.36 RUN_TAGs) contain DIFFERENT images, so
+  the earlier before/after batch comparison was on different image sets. The next batch run will
+  stop until one is copied to `selections/kavg_batch_selection_n100.json` (plan: the 0.1192 one,
+  if the pre-grid results were run on it). A separate set of
   values for the K-ensemble regime is planned later.
 - Image budget: ~200 knee CORPD_FBK/15-coil files (val + train_batch_0). One experiment per
   group uses ~141 (7 demo/default + 4 refs + 100 batch + 30 tuning). Brain AXT2 4-coil (165) and

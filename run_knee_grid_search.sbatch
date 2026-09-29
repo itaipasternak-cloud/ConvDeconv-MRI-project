@@ -1,12 +1,14 @@
 #!/bin/bash
 # Hyperparameter grid search (notebook Section 6.5) for HUBER_DELTA/TV_WEIGHT, as ONE SLURM array.
 #
-# 5 x 5 = 25 (huber_delta, tv_weight) combinations x 30 tuning images = 750 fits of 6000
-# iterations (Run A's regime: single random-init fit, scored exactly like the 100-image batch).
-# The work is split into 12 shards, one per array task; at most 12 tasks run at once (%12), so
-# this never takes more than 12 GPUs of the shared cluster.
+# The grid, search name, image count and iterations all come from Section 2 of the notebook
+# (GRID_SEARCH_NAME, GRID_HUBER_DELTA_VALUES, GRID_TV_WEIGHT_VALUES, GRID_REUSE_FROM, ...) -- edit
+# them there, not here. Each fit is Run A's regime (single random-init fit, 6000 iterations),
+# scored exactly like the 100-image batch. The work is split into 12 shards, one per array task;
+# at most 12 run at once (%12), so this never takes more than 12 GPUs of the shared cluster.
 #
-# Estimated cost: ~14 min per fit (Run A batch estimate) -> ~175 GPU-hours total, ~15h per task.
+# grid_v2 (5x5 x 30 images = 750 fits): ~175 GPU-hours, ~15h per task.
+# grid_v3 (4x3 x 30 = 360 fits, 60 copied from grid_v2): ~300 fits, ~6h per task.
 # --time is 24h for margin; watch the first few "(...s, ETA ...h)" lines in the logs.
 #
 # Preemption-safe: every fit is appended to results_shard<i>.csv as soon as it finishes, and a
@@ -14,7 +16,7 @@
 #
 # Submit:   sbatch run_knee_grid_search.sbatch
 # Progress: tail slurm_logs/grid-<jobid>_<task>.out
-# Results:  python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/grid_v2 --plot
+# Results:  python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/<GRID_SEARCH_NAME> --plot
 #
 # If you change the number of tasks, change BOTH --array and GRID_NUM_SHARDS below.
 #
@@ -74,9 +76,8 @@ export CD_EARLY_STOP_PLOT=False
 export CD_K_AVERAGING=False            # no Section 12 (reference fits / batch) in this job
 export CD_RUN_BATCH_EVAL=False
 
-# --- Grid search (grid values, image count and iterations come from Section 2's defaults) ---
+# --- Grid search (name, grid values, image count, iterations come from Section 2's defaults) ---
 export CD_RUN_GRID_SEARCH=True
-export CD_GRID_SEARCH_NAME=grid_v2
 export CD_GRID_NUM_SHARDS="$GRID_NUM_SHARDS"
 
 # --- Run Code ---
