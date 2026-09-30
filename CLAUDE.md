@@ -98,7 +98,14 @@ Main scripts:
   PSNR (~32.6-33.0 dB); best at the upper edges (delta 0.65, tv 7.5e-5). Old default ~(0.14,
   1.2e-5) = 32.70 dB, old winner ~(0.3, 3e-5) = 32.47 dB -- confirms the old winner was worse.
   Follow-up grid_v3: delta [0.65, 1.3, 2.6, 100 (=MSE)] x tv [3e-5, 7.5e-5, 1.9e-4], same 30
-  images, 2 shared pairs copied from grid_v2 (GRID_REUSE_FROM).
+  images, 2 shared pairs copied from grid_v2 (GRID_REUSE_FROM). grid_v3 result (job 97018):
+  PSNR falls steadily with delta (100 = plain MSE is ~2 dB worse, HFEN much worse) -> delta ~0.65
+  is the optimum and Huber clearly helps. Best of the 35 settings: (0.65, 1.9e-4), PSNR 32.92 dB
+  (tied best), SSIM 0.864 (best), vs old default 32.70 / 0.847 -- but on the TV edge.
+  grid_v4: delta [0.3, 0.65, 1.3] x tv [4.75e-4, 1.2e-3], same images -- does SSIM turn over?
+  Rank all together: `analyze_grid_search.py --grid-dir .../grid_v2 --grid-dir .../grid_v3
+  --grid-dir .../grid_v4 --plot`. Then: set the winner in Section 2 and run the 100-image
+  Run A + K-ensemble batches.
 - The two old 100-image lists (keyed by 0.1192 and 0.36 RUN_TAGs) contain DIFFERENT images, so
   the earlier before/after batch comparison was on different image sets. The next batch run will
   stop until one is copied to `selections/kavg_batch_selection_n100.json` (plan: the 0.1192 one,

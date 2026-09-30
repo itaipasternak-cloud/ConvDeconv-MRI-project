@@ -24,9 +24,15 @@ Guard: the winner must not be clearly worse (paired, ~95%) than the best combina
 on SSIM, so a VIF/HFEN gain can't buy a real PSNR/SSIM loss. Combinations that diverged on any
 image are never eligible.
 
+Several searches run on the SAME images with the SAME config (e.g. a follow-up grid made with
+GRID_REUSE_FROM) can be ranked together as one table: pass --grid-dir once per search. Settings
+two searches share are counted once. Results are then saved to the LAST --grid-dir as
+summary_combined.csv / best_combined.json / grid_heatmaps_combined.png.
+
 Usage:
     python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/grid_v2
     python3 analyze_grid_search.py --grid-dir ... --weights PSNR=0.5,SSIM=0.5 --plot
+    python3 analyze_grid_search.py --grid-dir .../grid_v2 --grid-dir .../grid_v3 --grid-dir .../grid_v4 --plot
 """
 import argparse
 import glob
@@ -62,7 +68,8 @@ def paired_diff(per_image, a, b):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--grid-dir", required=True, help="CKPT_ROOT/grid_search/<GRID_SEARCH_NAME>")
+    parser.add_argument("--grid-dir", required=True, action="append",
+                        help="CKPT_ROOT/grid_search/<GRID_SEARCH_NAME>; repeat to rank several searches together")
     parser.add_argument("--weights", default=DEFAULT_WEIGHTS,
                         help=f"metric weights for the combined score (default {DEFAULT_WEIGHTS})")
     parser.add_argument("--allow-partial", action="store_true",
@@ -70,18 +77,37 @@ def main():
     parser.add_argument("--plot", action="store_true", help="save heatmaps (needs matplotlib)")
     args = parser.parse_args()
 
-    grid_dir = os.path.expanduser(args.grid_dir)
+    grid_dirs = [os.path.expanduser(d) for d in args.grid_dir]
+    out_dir = grid_dirs[-1]
+    suffix = "_combined" if len(grid_dirs) > 1 else ""
     weights = parse_weights(args.weights)
-    with open(os.path.join(grid_dir, "manifest.json")) as f:
-        manifest = json.load(f)
-    deltas, tvs = manifest["huber_delta_values"], manifest["tv_weight_values"]
-    combos = [(d, tv) for d in deltas for tv in tvs]
-    n_images = len(manifest["images"])
 
-    shard_files = sorted(glob.glob(os.path.join(grid_dir, "results_shard*.csv")))
-    assert shard_files, f"no results_shard*.csv in {grid_dir}"
-    df = pd.concat([pd.read_csv(p) for p in shard_files], ignore_index=True)
-    df = df.drop_duplicates(subset=["Image", "Combo"], keep="last")
+    # Settings are identified by their (delta, tv) VALUES, not each search's own combo numbering,
+    # so several searches merge into one table.
+    manifests, frames, pairs = [], [], set()
+    for d in grid_dirs:
+        with open(os.path.join(d, "manifest.json")) as f:
+            m = json.load(f)
+        manifests.append(m)
+        pairs |= {(float(x), float(y)) for x in m["huber_delta_values"] for y in m["tv_weight_values"]}
+        shard_files = sorted(glob.glob(os.path.join(d, "results_shard*.csv")))
+        assert shard_files, f"no results_shard*.csv in {d}"
+        frames.append(pd.concat([pd.read_csv(p) for p in shard_files], ignore_index=True))
+    for d, m in zip(grid_dirs[1:], manifests[1:]):
+        assert m["images"] == manifests[0]["images"] and m["config"] == manifests[0]["config"], (
+            f"{d} used different images or config than {grid_dirs[0]} -- they can't be ranked together.")
+    combos = sorted(pairs)
+    combo_of = {p: c for c, p in enumerate(combos)}
+    deltas = sorted({d for d, _ in combos})
+    tvs = sorted({tv for _, tv in combos})
+    n_images = len(manifests[0]["images"])
+    if len(grid_dirs) > 1:
+        print(f"Ranking {len(grid_dirs)} searches together ({', '.join(os.path.basename(d) for d in grid_dirs)}): "
+              f"{len(combos)} distinct settings on the same {n_images} images.")
+
+    df = pd.concat(frames, ignore_index=True)
+    df["Combo"] = [combo_of[(float(d), float(tv))] for d, tv in zip(df["Huber_Delta"], df["TV_Weight"])]
+    df = df.drop_duplicates(subset=["Image", "Combo"], keep="first")
 
     # --- completeness: only images that every combination has finished are comparable ---
     per_image_count = df.groupby("Image")["Combo"].nunique()
@@ -182,21 +208,26 @@ def main():
               + " -- differences among these are within noise.")
     else:
         print("  Clearly ahead of every other combination on the score.")
+    # Edge = extreme of the values tested ALONG the winner's own row/column (grids may be irregular
+    # when several searches are combined).
+    same_tv = sorted(d for d, tv in combos if tv == winner["TV_Weight"])
+    same_delta = sorted(tv for d, tv in combos if d == winner["Huber_Delta"])
     edges = []
-    if winner["Huber_Delta"] in (deltas[0], deltas[-1]):
+    if winner["Huber_Delta"] in (same_tv[0], same_tv[-1]):
         edges.append("huber_delta")
-    if winner["TV_Weight"] in (tvs[0], tvs[-1]):
+    if winner["TV_Weight"] in (same_delta[0], same_delta[-1]):
         edges.append("tv_weight")
     if edges:
         print(f"  NOTE: the winner is on the edge of the grid for {' and '.join(edges)} -- the best "
               f"value may lie outside the range searched; consider extending it that way.")
 
-    summary_path = os.path.join(grid_dir, "summary.csv")
+    summary_path = os.path.join(out_dir, f"summary{suffix}.csv")
     ranked.to_csv(summary_path, index=False)
-    best_path = os.path.join(grid_dir, "best.json")
+    best_path = os.path.join(out_dir, f"best{suffix}.json")
     with open(best_path, "w") as f:
         json.dump({"huber_delta": float(winner["Huber_Delta"]), "tv_weight": float(winner["TV_Weight"]),
                    "weights": weights, "n_images": len(complete_images),
+                   "searches": [os.path.basename(d) for d in grid_dirs],
                    "tied_with": [list(combos[c]) for c in tied],
                    "metrics": {m: float(winner[m]) for m in METRICS}}, f, indent=1)
     print(f"\nSaved {summary_path} and {best_path}.")
@@ -207,7 +238,8 @@ def main():
         import matplotlib.pyplot as plt
         fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
         for ax, m in zip(axes, ["Score", "PSNR", "SSIM"]):
-            grid = summary.pivot(index="Huber_Delta", columns="TV_Weight", values=m)
+            grid = summary.pivot(index="Huber_Delta", columns="TV_Weight", values=m).reindex(
+                index=deltas, columns=tvs)  # untested cells stay blank
             im = ax.imshow(grid.values, cmap="viridis", origin="lower")
             ax.set_xticks(range(len(tvs)), [f"{v:g}" for v in tvs], rotation=45)
             ax.set_yticks(range(len(deltas)), [f"{v:g}" for v in deltas])
@@ -216,11 +248,12 @@ def main():
             ax.set_title(m)
             for i in range(len(deltas)):
                 for j in range(len(tvs)):
-                    ax.text(j, i, f"{grid.values[i, j]:.3g}", ha="center", va="center",
-                            color="white", fontsize=8)
+                    if not np.isnan(grid.values[i, j]):
+                        ax.text(j, i, f"{grid.values[i, j]:.3g}", ha="center", va="center",
+                                color="white", fontsize=8)
             fig.colorbar(im, ax=ax, shrink=0.8)
         fig.tight_layout()
-        plot_path = os.path.join(grid_dir, "grid_heatmaps.png")
+        plot_path = os.path.join(out_dir, f"grid_heatmaps{suffix}.png")
         fig.savefig(plot_path, dpi=130)
         print(f"Saved {plot_path}.")
 
