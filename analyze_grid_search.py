@@ -29,7 +29,15 @@ GRID_REUSE_FROM) can be ranked together as one table: pass --grid-dir once per s
 two searches share are counted once. Results are then saved to the LAST --grid-dir as
 summary_combined.csv / best_combined.json / grid_heatmaps_combined.png.
 
+Intensity scale (--scale): the standard metric columns compare each image divided by its OWN
+max, so one bright artifact pixel in a reconstruction darkens all of it and is scored as error
+everywhere (view_grid_settings.py found a fit scoring 22.3 dB that way vs 31.2 dB on the raw
+scale). Searches since grid_v5 also record raw-scale (*_raw), least-squares (*_ls) and
+anatomy-only (PSNR_fg/SSIM_fg) metrics -- see compute_metric_variants() in the notebook.
+--scale auto (default) ranks on raw when every search has it, otherwise on the standard columns.
+
 Usage:
+    python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/grid_v5 --scale raw --plot
     python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/grid_v2
     python3 analyze_grid_search.py --grid-dir ... --weights PSNR=0.5,SSIM=0.5 --plot
     python3 analyze_grid_search.py --grid-dir .../grid_v2 --grid-dir .../grid_v3 --grid-dir .../grid_v4 --plot
@@ -75,6 +83,8 @@ def main():
     parser.add_argument("--allow-partial", action="store_true",
                         help="analyze an unfinished search, using only images every combination has finished")
     parser.add_argument("--plot", action="store_true", help="save heatmaps (needs matplotlib)")
+    parser.add_argument("--scale", choices=["auto", "max", "raw", "ls"], default="auto",
+                        help="which intensity-scale convention's metrics to rank on (see above)")
     args = parser.parse_args()
 
     grid_dirs = [os.path.expanduser(d) for d in args.grid_dir]
@@ -106,6 +116,23 @@ def main():
               f"{len(combos)} distinct settings on the same {n_images} images.")
 
     df = pd.concat(frames, ignore_index=True)
+
+    def has_scale(scale):
+        return all(f"{m}_{scale}" in df.columns and df[f"{m}_{scale}"].notna().any() for m in METRICS)
+    scale = args.scale if args.scale != "auto" else ("raw" if has_scale("raw") else "max")
+    if scale != "max":
+        if not has_scale(scale):
+            raise SystemExit(f"--scale {scale}: these results have no {scale}-scale metrics (searches "
+                             f"before grid_v5 only recorded the max-normalized ones). Use --scale max.")
+        for m in METRICS:
+            df[m] = df[f"{m}_{scale}"]
+    print({"max": "Metrics: standard (each image divided by its own max).",
+           "raw": "Metrics: raw scale (reconstruction not rescaled; both divided by the ground truth's max).",
+           "ls": "Metrics: least-squares brightness match."}[scale])
+    # Anatomy-only PSNR/SSIM (raw scale) are reported alongside, not scored.
+    extra = [c for c in ("PSNR_fg", "SSIM_fg") if c in df.columns and df[c].notna().any()]
+    if scale != "max":
+        suffix += f"_{scale}"
     df["Combo"] = [combo_of[(float(d), float(tv))] for d, tv in zip(df["Huber_Delta"], df["TV_Weight"])]
     df = df.drop_duplicates(subset=["Image", "Combo"], keep="first")
 
@@ -129,7 +156,7 @@ def main():
             print(f"  delta={combos[c][0]:g} tv={combos[c][1]:g}: {n} image(s)")
 
     # --- per-metric image x combo tables ---
-    tables = {m: df.pivot(index="Image", columns="Combo", values=m) for m in METRICS}
+    tables = {m: df.pivot(index="Image", columns="Combo", values=m) for m in METRICS + extra}
 
     # --- combined score: remove each image's difficulty, then put metrics on a common scale ---
     # Dividing by each metric's own spread is what makes the weights scale-free: SSIM moves by
@@ -153,7 +180,7 @@ def main():
     for c, (d, tv) in enumerate(combos):
         r = {"Combo": c, "Huber_Delta": d, "TV_Weight": tv,
              "Diverged": int(diverged.get(c, 0))}
-        for m in METRICS + ["Score"]:
+        for m in METRICS + extra + ["Score"]:
             col = tables[m][c].dropna()
             r[m] = col.mean()
             r[f"{m}_SE"] = col.std(ddof=1) / np.sqrt(len(col))
@@ -182,7 +209,7 @@ def main():
     # --- report ---
     pd.set_option("display.width", 200)
     show = ["Huber_Delta", "TV_Weight", "Score", "PSNR", "PSNR_SE", "SSIM", "VIF", "HFEN",
-            "MS-SSIM", "NMSE", "Eligible"]
+            "MS-SSIM", "NMSE"] + extra + ["Eligible"]
     print(f"\nWeights: {', '.join(f'{k}={v:.2f}' for k, v in weights.items())}   "
           f"(n={len(complete_images)} images, paired)")
     print(ranked[show].to_string(index=False, float_format=lambda v: f"{v:.4g}"))
@@ -227,7 +254,7 @@ def main():
     with open(best_path, "w") as f:
         json.dump({"huber_delta": float(winner["Huber_Delta"]), "tv_weight": float(winner["TV_Weight"]),
                    "weights": weights, "n_images": len(complete_images),
-                   "searches": [os.path.basename(d) for d in grid_dirs],
+                   "searches": [os.path.basename(d) for d in grid_dirs], "scale": scale,
                    "tied_with": [list(combos[c]) for c in tied],
                    "metrics": {m: float(winner[m]) for m in METRICS}}, f, indent=1)
     print(f"\nSaved {summary_path} and {best_path}.")

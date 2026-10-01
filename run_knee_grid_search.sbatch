@@ -9,14 +9,17 @@
 #
 # grid_v2 (5x5 x 30 images = 750 fits): ~175 GPU-hours, ~15h per task.
 # grid_v3 (4x3 x 30 = 360 fits, 60 copied from grid_v2): ~300 fits, ~6h per task.
-# --time is 24h for margin; watch the first few "(...s, ETA ...h)" lines in the logs.
+# grid_v5 (8x10 x 30 = 2400 fits, full grid on seeded masks): fits stop early at ~1500-6000 of
+# 6000 iterations, 2-5 min each (jobs 98026/98111) -> ~140 GPU-hours, ~12h per task.
+# --time is 30h for margin; watch the first few "(...s, ETA ...h)" lines in the logs. A task that
+# hits the time limit is NOT requeued -- resubmit just that task (--array=<i>); it resumes.
 #
 # Preemption-safe: every fit is appended to results_shard<i>.csv as soon as it finishes, and a
 # requeued task skips what it already did -- a preemption costs at most the fit in progress.
 #
 # Submit:   sbatch run_knee_grid_search.sbatch
 # Progress: tail slurm_logs/grid-<jobid>_<task>.out
-# Results:  python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/<GRID_SEARCH_NAME> --plot
+# Results:  python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/<GRID_SEARCH_NAME> --scale raw --plot
 #
 # If you change the number of tasks, change BOTH --array and GRID_NUM_SHARDS below.
 #
@@ -38,7 +41,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
-#SBATCH --time=24:00:00
+#SBATCH --time=30:00:00
 
 GRID_NUM_SHARDS=12
 

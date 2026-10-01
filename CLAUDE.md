@@ -115,8 +115,18 @@ Main scripts:
   (0.14 untested at high TV) and TV. At delta 0.3 PSNR has flattened while SSIM still rises; VIF
   falls as TV rises (possible over-smoothing), and full-frame metrics also reward flattened
   background. `view_grid_settings.py` (job 98026) refits 3 tuning images x 4 settings on shared
-  masks to look at this. Then: pick the settings (maybe grid_v5 on seeded masks), set them in
-  Section 2, run the 100-image Run A + K-ensemble batches.
+  masks: under raw-scale metrics (0.3, 1.2e-3) was best or tied on all 3 images, and the
+  max-normalized metric turned out very noisy (one fit: 22.3 dB max-normalized vs 31.2 dB raw),
+  so grid_v2-v4's fine ranking is unreliable.
+  **grid_v5** = the full grid, delta [0.03 ... 2.6, 100] x TV [2e-6 ... 7.5e-3] (80 settings x
+  30 images = 2400 fits, same tuning images as grid_v2), seeded masks, raw metrics recorded. Rank
+  with `analyze_grid_search.py --grid-dir .../grid_v5 --scale raw --plot`. Then set the winner in
+  Section 2 and run the 100-image Run A + K-ensemble batches.
+- Fixed evaluation set (2026-10-01): the delta-0.36 run's lists were copied to
+  `selections/kavg_batch_selection_n100.json`, `kavg_ref_selection_kavg4.json`,
+  `kavg_ref_selection_kavg1.json`, and `kavg_batch_selection_n1.json` = its first image (so a
+  1-image test run accumulates into the 100-image results). The delta-0.1192 list was not usable:
+  it contains 6 tuning images.
 - **Undersampling masks are seeded per image since 2026-10-01** (`mask_seed_for()`, Section 5:
   SEED + checksum of the image's k-space). Before that, MaskFunc reseeded from OS entropy on
   every call, so grid_v2-v4 compared settings on different masks (unbiased, but noisier -- their
