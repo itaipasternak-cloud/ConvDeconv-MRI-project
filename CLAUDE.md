@@ -22,6 +22,11 @@ set up but not yet run at scale). On top of the original ConvDecoder it adds:
   ESPIRiT sensitivity maps with fixed ACS width, Optuna + exhaustive grid hyperparameter search.
 
 Metrics everywhere: PSNR, SSIM, MS-SSIM, VIF (higher better), NMSE, HFEN (lower better).
+The standard columns compare normalize(gt) with normalize(rec) (each divided by its OWN max), which
+penalizes a bright artifact pixel or extra noise everywhere. Since 2026-10-01 the grid search and
+batch also record `*_raw` (no rescaling -- rec is already on gt's scale), `*_ls` (least-squares
+brightness match) and `PSNR_fg`/`SSIM_fg` (raw, anatomy only); see `compute_metric_variants()`.
+Which convention the paper reports is still to be decided (being compared with view_grid_settings.py).
 
 ## Where things live
 
