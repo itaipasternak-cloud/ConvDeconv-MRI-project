@@ -15,14 +15,19 @@ Two differences from the grid search, both on purpose:
     (grid_v2-v4 ran before the notebook seeded its masks, so they compared settings on different
     masks; here the comparison is exact, and a preempted job resumes on the same masks. These
     filename-seeded masks differ from the notebook's own per-image masks, mask_seed_for().)
-  - Besides full-frame PSNR/SSIM (what the grid search reports), PSNR/SSIM are also computed on
-    the anatomy bounding box only ("ROI"), since strong TV also flattens background noise, which
-    raises full-frame metrics without improving the knee itself.
+  - Metrics are reported under three intensity-scale conventions (compute_metric_variants(),
+    notebook Section 5): "max" -- the notebook's standard, each image divided by its own brightest
+    pixel, so one bright artifact pixel darkens the whole reconstruction; "raw" -- no rescaling
+    (reconstruct() already returns gt's scale); "ls" -- least-squares brightness match. Plus
+    raw-scale PSNR/SSIM on the anatomy only ("knee", foreground_mask()), since strong TV also
+    flattens background noise.
 
 Output (CKPT_ROOT/grid_search/viewer/ by default):
   <image>.png        rows: full image / |error| / zoomed patch; columns: GT, zero-filled, settings
-  metrics.csv        full-frame and ROI metrics per (image, setting)
-  cache/*.npz        one reconstruction per (image, setting) -- a requeued job skips these
+                     (all on the raw scale; the GT column's middle panel shows the anatomy mask)
+  metrics.csv        one row per (image, setting, Scale) with all metrics
+  cache/*.npz        one raw-scale reconstruction per (image, setting) -- reused on later runs;
+                     caches from the first version (max-normalized only) are refit
 
 Images: by default 3 of the grid's 30 tuning images, picked from the grid results as the image
 where settings[0] beat settings[1] by the least, the median, and the most PSNR (so you see the
@@ -176,8 +181,10 @@ def main():
         ns["set_seed"](ns["SEED"])
         seed_masks((zlib.crc32(stem.encode()) + ns["SEED"]) & 0x7FFFFFFF)
         u = ns["build_undersampled"](ksp_tt, slice_ksp, net_for_scale)
-        gt = normalize(u["gt_espirit"].astype(np.float64))
-        zf = normalize(u["zf_img_cropped"].astype(np.float64))
+        gt_raw = u["gt_espirit"].astype(np.float64)
+        s = gt_raw.max()          # display + "raw" metrics: everything divided by gt's max only
+        gt = gt_raw / s
+        zf = u["zf_img_cropped"].astype(np.float64) / s
         rs, cs = ns["_display_bbox"](gt)
 
         recs = {}
@@ -185,9 +192,12 @@ def main():
             cache = os.path.join(cache_dir, f"{stem}__delta{d:g}_tv{tv:g}.npz")
             if os.path.exists(cache):
                 c = np.load(cache)
-                recs[(d, tv)] = (c["rec"], int(c["iters"]))
-                print(f"{fname} delta={d:g} tv={tv:g}: cached")
-                continue
+                if "rec_raw" in c:
+                    recs[(d, tv)] = (c["rec_raw"], int(c["iters"]))
+                    print(f"{fname} delta={d:g} tv={tv:g}: cached")
+                    continue
+                print(f"{fname} delta={d:g} tv={tv:g}: cache has only the max-normalized "
+                      f"reconstruction (first version of this script) -- refitting for the raw scale")
             t0 = time.time()
             try:
                 net = ns["build_network"](shape, seed=ns["SEED"] + 1000)
@@ -204,61 +214,83 @@ def main():
             except ns["ReconstructionDivergedError"] as e:
                 print(f"{fname} delta={d:g} tv={tv:g}: DIVERGED ({e})")
                 continue
-            rec = normalize(np.abs(rec).astype(np.float64))
+            rec_raw = np.abs(rec).astype(np.float64)  # reconstruct() output is on gt's raw scale
             iters = int(getattr(net, "iters_run", num_iters))
-            np.savez_compressed(cache, rec=rec, iters=iters)
-            recs[(d, tv)] = (rec, iters)
+            np.savez_compressed(cache, rec_raw=rec_raw, iters=iters)
+            recs[(d, tv)] = (rec_raw, iters)
             print(f"{fname} delta={d:g} tv={tv:g}: done in {time.time() - t0:.0f}s ({iters} iter)")
 
-        for (d, tv), (rec, iters) in recs.items():
-            m = ns["compute_all_metrics"](gt, rec)
-            m.update(PSNR_ROI=psnr(gt[rs, cs], rec[rs, cs]), SSIM_ROI=ssim(gt[rs, cs], rec[rs, cs]))
-            m.update(Image=fname, Huber_Delta=d, TV_Weight=tv, Iters_Run=iters)
-            rows.append(m)
+        # Three intensity-scale conventions per fit (see compute_metric_variants() in Section 5):
+        # "max" = the notebook's standard normalize() of each image by its own max, "raw" = no
+        # rescaling, "ls" = least-squares brightness match. PSNR_fg/SSIM_fg: raw, anatomy only.
+        for (d, tv), (rec_raw, iters) in recs.items():
+            base = dict(Image=fname, Huber_Delta=d, TV_Weight=tv, Iters_Run=iters)
+            m_max = ns["compute_all_metrics"](normalize(gt_raw), normalize(rec_raw))
+            v = ns["compute_metric_variants"](gt_raw, rec_raw)
+            rows.append({**base, "Scale": "max", **m_max})
+            for scale in ("raw", "ls"):
+                m = {k[:-len(scale) - 1]: val for k, val in v.items() if k.endswith(f"_{scale}")}
+                extra = {"PSNR_fg": v["PSNR_fg"], "SSIM_fg": v["SSIM_fg"]} if scale == "raw" else {}
+                rows.append({**base, "Scale": scale, **m, **extra})
 
-        # --- figure: full / |error| / zoom, columns GT, zero-filled, then each setting ---
+        # --- figure: full / |error| / zoom, columns GT, zero-filled, then each setting. All panels
+        # on the raw scale (divided by gt's max), so a brightness mismatch is visible as such. ---
+        def metric(key, scale, name):
+            return next(r[name] for r in rows if r["Image"] == fname and r["Scale"] == scale
+                        and (r["Huber_Delta"], r["TV_Weight"]) == key)
+
         panels = [("Ground truth", gt, None), ("Zero-filled", zf, None)] + [
-            (f"delta={d:g}, TV={tv:g}", rec, (d, tv)) for (d, tv), (rec, _) in recs.items()]
+            (f"delta={d:g}, TV={tv:g}", rec_raw / s, (d, tv)) for (d, tv), (rec_raw, _) in recs.items()]
         H, W = gt[rs, cs].shape
         side = max(min(H, W) // 3, 32)
         zr0, zc0 = (H - side) // 2, (W - side) // 2  # central patch of the anatomy
-        fig, axes = plt.subplots(3, len(panels), figsize=(3.6 * len(panels), 11.5))
+        fg = ns["foreground_mask"](gt)
+        fig, axes = plt.subplots(3, len(panels), figsize=(3.6 * len(panels), 11.8))
         for j, (title, img, key) in enumerate(panels):
             crop = img[rs, cs]
             axes[0, j].imshow(np.flipud(crop), cmap="gray", vmin=0, vmax=1)
             if key is not None:
-                r = next(r for r in rows if r["Image"] == fname and (r["Huber_Delta"], r["TV_Weight"]) == key)
-                title += (f"\nPSNR {r['PSNR']:.2f} | SSIM {r['SSIM']:.3f}"
-                          f"\nROI {r['PSNR_ROI']:.2f} | {r['SSIM_ROI']:.3f}")
+                title += "".join(f"\n{sc:>3}: PSNR {metric(key, sc, 'PSNR'):.2f} | SSIM {metric(key, sc, 'SSIM'):.3f}"
+                                 for sc in ("max", "raw", "ls"))
+                title += f"\nknee: PSNR {metric(key, 'raw', 'PSNR_fg'):.2f} | SSIM {metric(key, 'raw', 'SSIM_fg'):.3f}"
             elif j == 1:
-                title += f"\nPSNR {psnr(gt, zf):.2f} | SSIM {ssim(gt, zf):.3f}"
-            axes[0, j].set_title(title, fontsize=9)
+                title += f"\nraw: PSNR {psnr(gt, zf):.2f} | SSIM {ssim(gt, zf):.3f}"
+            axes[0, j].set_title(title, fontsize=8)
             if j == 0:
                 axes[0, j].add_patch(Rectangle((zc0, H - zr0 - side), side, side,
                                                fill=False, edgecolor="yellow", linewidth=1))
-                axes[1, j].set_title("|error| (0 to 0.15)", fontsize=9)
+                axes[1, j].imshow(np.flipud(fg[rs, cs]), cmap="gray", vmin=0, vmax=1)
+                axes[1, j].set_title("anatomy mask (knee metrics)", fontsize=8)
             else:
                 axes[1, j].imshow(np.flipud(np.abs(gt[rs, cs] - crop)), cmap="gray", vmin=0, vmax=0.15)
             patch = crop[zr0:zr0 + side, zc0:zc0 + side]
             axes[2, j].imshow(np.flipud(patch), cmap="gray", vmin=0, vmax=max(gt[rs, cs][zr0:zr0 + side, zc0:zc0 + side].max(), 1e-6))
             for i in range(3):
                 axes[i, j].axis("off")
-        axes[2, 0].set_title("zoom (yellow box)", fontsize=9)
-        fig.suptitle(f"{fname} -- same mask for every setting, {num_iters} iter max", fontsize=11)
-        fig.tight_layout()
+        axes[2, 0].set_title("zoom (yellow box)", fontsize=8)
+        fig.suptitle(f"{fname} -- same mask for every setting, {num_iters} iter max; "
+                     f"images and |error| (0 to 0.15) on the raw scale", fontsize=11)
+        fig.tight_layout(rect=(0, 0, 1, 0.96))  # leave room for the suptitle
         png = os.path.join(out_dir, f"{stem}.png")
         fig.savefig(png, dpi=130)
         plt.close(fig)
         print(f"Saved {png}")
 
-    df = pd.DataFrame(rows)[["Image", "Huber_Delta", "TV_Weight", "PSNR", "PSNR_ROI", "SSIM",
-                             "SSIM_ROI", "VIF", "HFEN", "NMSE", "MS-SSIM", "Iters_Run"]]
+    df = pd.DataFrame(rows).reindex(columns=[
+        "Image", "Huber_Delta", "TV_Weight", "Scale", "PSNR", "SSIM", "VIF", "HFEN", "NMSE",
+        "MS-SSIM", "PSNR_fg", "SSIM_fg", "Iters_Run"])
     df.to_csv(os.path.join(out_dir, "metrics.csv"), index=False)
-    pd.set_option("display.width", 200)
-    print("\n" + df.to_string(index=False, float_format=lambda v: f"{v:.4g}"))
-    print("\nMean per setting:")
-    print(df.groupby(["Huber_Delta", "TV_Weight"])[["PSNR", "PSNR_ROI", "SSIM", "SSIM_ROI", "VIF", "HFEN"]]
-          .mean().to_string(float_format=lambda v: f"{v:.4g}"))
+    pd.set_option("display.width", 220)
+    fmt = lambda v: f"{v:.4g}"
+    print("\nPSNR per image and setting, by intensity-scale convention (knee = raw, anatomy only):")
+    wide = df.pivot_table(index=["Image", "Huber_Delta", "TV_Weight"], columns="Scale", values="PSNR")
+    wide["knee"] = df[df["Scale"] == "raw"].set_index(["Image", "Huber_Delta", "TV_Weight"])["PSNR_fg"]
+    wide["Iters_Run"] = df[df["Scale"] == "raw"].set_index(["Image", "Huber_Delta", "TV_Weight"])["Iters_Run"]
+    print(wide[["max", "raw", "ls", "knee", "Iters_Run"]].to_string(float_format=fmt))
+    for scale in ("max", "raw", "ls"):
+        cols = ["PSNR", "SSIM", "VIF", "HFEN"] + (["PSNR_fg", "SSIM_fg"] if scale == "raw" else [])
+        print(f"\nMean per setting -- {scale}:")
+        print(df[df["Scale"] == scale].groupby(["Huber_Delta", "TV_Weight"])[cols].mean().to_string(float_format=fmt))
 
 
 if __name__ == "__main__":
