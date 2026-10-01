@@ -41,7 +41,9 @@ Metrics everywhere: PSNR, SSIM, MS-SSIM, VIF (higher better), NMSE, HFEN (lower 
 - `demo_helper/` (helpers, `fit_multicoil.py`), `include/`, `common/`, `DIP_UNET_models/`: library
   code, mostly from the original repo (lightly modernized June 2026).
 - `run_*.sbatch`: SLURM jobs (see below). `analyze_grid_search.py`: ranks a finished grid search
-  and picks the winner (scoring weights live here). `check_image_budget.py`: free images per
+  and picks the winner (scoring weights live here). `view_grid_settings.py` (+
+  `run_view_grid_settings.sbatch`): refits a few tuning images under chosen settings and saves
+  comparison figures + full-frame/ROI metrics. `check_image_budget.py`: free images per
   acquisition/coil group after existing selections. `check_*_pool.py`,
   `setup_knee_combined_pool.sh`: dataset pool checks/setup.
 - `outputs/`, `slurm_logs/`, `9029*.out`: a few committed job outputs/logs (early runs).
@@ -80,7 +82,7 @@ Main scripts:
   `sbatch --array=0-3 --export=ALL,RERUN_SHARD=5,RERUN_PARTS=4 run_knee_grid_search.sbatch`.
   Each search's name/grid/image reuse is set in Section 2 (`GRID_SEARCH_NAME`, `GRID_REUSE_FROM`, ...).
 
-## Current state (as of 2026-09-24)
+## Current state (as of 2026-10-01)
 
 - Default config: `convdecoder_dcse`, uniform z, Huber+TV, variance early stopping, LR schedule on,
   `K_VALUE=4`, guided init from different images, `ACCEL_NUM_ITERS=1350`, `SEED=0`.
@@ -102,10 +104,21 @@ Main scripts:
   PSNR falls steadily with delta (100 = plain MSE is ~2 dB worse, HFEN much worse) -> delta ~0.65
   is the optimum and Huber clearly helps. Best of the 35 settings: (0.65, 1.9e-4), PSNR 32.92 dB
   (tied best), SSIM 0.864 (best), vs old default 32.70 / 0.847 -- but on the TV edge.
-  grid_v4: delta [0.3, 0.65, 1.3] x tv [4.75e-4, 1.2e-3], same images -- does SSIM turn over?
-  Rank all together: `analyze_grid_search.py --grid-dir .../grid_v2 --grid-dir .../grid_v3
-  --grid-dir .../grid_v4 --plot`. Then: set the winner in Section 2 and run the 100-image
-  Run A + K-ensemble batches.
+  grid_v4: delta [0.3, 0.65, 1.3] x tv [4.75e-4, 1.2e-3], same images. Ranked together (41
+  settings, 2026-10-01): winner (0.3, 1.2e-3) PSNR 33.46 / SSIM 0.876, statistically tied with
+  (0.3, 4.75e-4) 33.50 / 0.871 and (0.65, 1.2e-3) 33.20 / 0.874; on the grid edge for both delta
+  (0.14 untested at high TV) and TV. At delta 0.3 PSNR has flattened while SSIM still rises; VIF
+  falls as TV rises (possible over-smoothing), and full-frame metrics also reward flattened
+  background. `view_grid_settings.py` (job 98026) refits 3 tuning images x 4 settings on shared
+  masks to look at this. Then: pick the settings (maybe grid_v5 on seeded masks), set them in
+  Section 2, run the 100-image Run A + K-ensemble batches.
+- **Undersampling masks are seeded per image since 2026-10-01** (`mask_seed_for()`, Section 5:
+  SEED + checksum of the image's k-space). Before that, MaskFunc reseeded from OS entropy on
+  every call, so grid_v2-v4 compared settings on different masks (unbiased, but noisier -- their
+  ties/SEs already include that noise), Run A and the K-ensemble used different masks, and
+  cached fits reloaded after a requeue got data consistency from the wrong mask. Cached batch
+  members are now refit if their saved mask differs (`cached_fit_mask_matches()`), and the grid
+  config records `mask_seeding`, so new searches don't import/rank with grid_v2-v4.
 - The two old 100-image lists (keyed by 0.1192 and 0.36 RUN_TAGs) contain DIFFERENT images, so
   the earlier before/after batch comparison was on different image sets. The next batch run will
   stop until one is copied to `selections/kavg_batch_selection_n100.json` (plan: the 0.1192 one,

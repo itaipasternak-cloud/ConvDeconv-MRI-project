@@ -12,9 +12,9 @@ from MRI_ConvDeconv_variance_earlystop.ipynb, so nothing here re-implements the 
 
 Two differences from the grid search, both on purpose:
   - Every setting of one image is fit on the SAME undersampling mask, seeded from the filename.
-    (The notebook's masks are not tied to SEED -- MaskFunc reseeds from OS entropy -- so the grid
-    search compared settings on different masks; here the comparison is exact, and a preempted
-    job resumes on the same masks.)
+    (grid_v2-v4 ran before the notebook seeded its masks, so they compared settings on different
+    masks; here the comparison is exact, and a preempted job resumes on the same masks. These
+    filename-seeded masks differ from the notebook's own per-image masks, mask_seed_for().)
   - Besides full-frame PSNR/SSIM (what the grid search reports), PSNR/SSIM are also computed on
     the anatomy bounding box only ("ROI"), since strong TV also flattens background noise, which
     raises full-frame metrics without improving the knee itself.
@@ -77,14 +77,17 @@ def load_notebook(repo_dir):
 
 def seed_masks(base_seed):
     """Make MaskFunc deterministic: each draw uses base_seed, base_seed+1, ... (get_mask() redraws
-    until the acceleration is within tolerance, so the seed must advance between draws)."""
+    until the acceleration is within tolerance, so the seed must advance between draws).
+    Overrides the notebook's own per-image seed (mask_seed_for(), added after this script's first
+    run, job 98026) so this script keeps its filename-based masks -- a requeued job then still
+    matches the fits it already cached."""
     import demo_helper.helpers as H
     if not hasattr(H.MaskFunc, "_orig_call"):
         H.MaskFunc._orig_call = H.MaskFunc.__call__
         H.MaskFunc._next_seed = None
 
         def _seeded_call(self, shape, seed=None):
-            if seed is None and H.MaskFunc._next_seed is not None:
+            if H.MaskFunc._next_seed is not None:
                 seed = H.MaskFunc._next_seed
                 H.MaskFunc._next_seed += 1
             return H.MaskFunc._orig_call(self, shape, seed)

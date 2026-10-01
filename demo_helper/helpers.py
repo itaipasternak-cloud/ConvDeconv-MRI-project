@@ -148,7 +148,11 @@ def forwardm(img,mask):
         Fimg[0,i,:,:,1] *= mask
     return Fimg
 
-def get_mask(slice_ksp_torchtensor, slice_ksp,factor=4,cent=0.07):
+def get_mask(slice_ksp_torchtensor, slice_ksp,factor=4,cent=0.07,seed=None):
+    # seed=None (default): a fresh random mask on every call -- MaskFunc reseeds from OS entropy,
+    # so the global numpy/torch seeds have no effect. An int seed makes the mask reproducible:
+    # draw number k (the loop below redraws until the acceleration is within tolerance) uses
+    # seed + k, so the same seed always ends on the same mask.
     try: # if the file already has a mask
         temp = np.array([1 if e else 0 for e in f["mask"]])
         temp = temp[np.newaxis].T
@@ -158,9 +162,12 @@ def get_mask(slice_ksp_torchtensor, slice_ksp,factor=4,cent=0.07):
         desired_factor = factor # desired under-sampling factor
         undersampling_factor = 0
         tolerance = 0.03
+        attempt = 0
         while undersampling_factor < desired_factor - tolerance or undersampling_factor > desired_factor + tolerance:
             mask_func = MaskFunc(center_fractions=[cent], accelerations=[desired_factor])  # Create the mask function object
-            masked_kspace, mask = apply_mask(slice_ksp_torchtensor, mask_func=mask_func)   # Apply the mask to k-space
+            masked_kspace, mask = apply_mask(slice_ksp_torchtensor, mask_func=mask_func,   # Apply the mask to k-space
+                                             seed=None if seed is None else seed + attempt)
+            attempt += 1
             mask1d = var_to_np(mask)[0,:,0]
             undersampling_factor = len(mask1d) / sum(mask1d)
 
