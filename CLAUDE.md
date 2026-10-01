@@ -40,7 +40,7 @@ Which convention the paper reports is still to be decided (being compared with v
   - Section 6.5: hyperparameter grid search (5x5 HUBER_DELTA x TV_WEIGHT, 30 images, Run A regime),
     sharded across a SLURM array; results in `CKPT_ROOT/grid_search/<GRID_SEARCH_NAME>/`.
   - Section 12 / 12.5: K-ensemble single image, then the real batch pipeline.
-- `MRI_ConvDeconv_espirit.ipynb`, `*.ipynb.bak`, `ConvDecoder_for_MRI.ipynb`: older versions, not
+- `MRI_ConvDeconv_espirit.ipynb`, `ConvDecoder_for_MRI.ipynb`: older versions, not
   maintained. The other notebooks (`ConvDecoder_vs_*`, `robustness_*`, `visualize_*`) are the
   original paper's.
 - `demo_helper/` (helpers, `fit_multicoil.py`), `include/`, `common/`, `DIP_UNET_models/`: library
@@ -51,7 +51,7 @@ Which convention the paper reports is still to be decided (being compared with v
   comparison figures + full-frame/ROI metrics. `check_image_budget.py`: free images per
   acquisition/coil group after existing selections. `check_*_pool.py`,
   `setup_knee_combined_pool.sh`: dataset pool checks/setup.
-- `outputs/`, `slurm_logs/`, `9029*.out`: a few committed job outputs/logs (early runs).
+- `outputs/`, `slurm_logs/`: a few committed job outputs/logs (early runs).
 
 ## How it runs
 
@@ -146,7 +146,23 @@ Main scripts:
   iteration (measured by Section 12.7). Total compute must stay at or below the original
   method's, which is why Run A uses 6000 iterations (roughly 9000 vanilla-equivalent, per Itai).
   Don't raise iteration counts without checking this.
-- Open question: whether the brain run is still planned.
+
+## Goals and roadmap (as of 2026-10-01)
+
+- Goal: a paper accepted in a Q1/Q2 journal, then the thesis built on it. Choose the
+  methodologically right option over matching how the original ConvDecoder paper did things.
+- Next, in order: grid_v5 -> set its winner in Section 2 -> metric cleanup (raw-scale metrics
+  become the standard columns, max-normalized ones dropped; record iterations actually used per
+  batch fit, for the equal-compute claim) -> 1-image tests of both batch scripts -> 100-image Run
+  A + K-ensemble batches -> a separate grid search for the accelerated (guided-init, ACCEL_*)
+  regime's HUBER_DELTA/TV_WEIGHT.
+- Brain is still planned. Later: more anatomies and acceleration factors, confidence
+  (uncertainty) maps, and low-field MRI.
+- Speed over bit-for-bit reproducibility for now: `cudnn.benchmark = True` stays, so refitting the
+  same config can stop at a different iteration and differ slightly (seen in jobs 98026/98111).
+- Open question: early stopping (variance, patience 2, 12% margin) stops fits anywhere from
+  ~1500 to 6000 of 6000 iterations, and the stopping point moves a fit's PSNR by up to ~1 dB.
+  Whether it helps vs. a fixed budget hasn't been tested -- a candidate ablation.
 
 ## Rules and conventions
 
