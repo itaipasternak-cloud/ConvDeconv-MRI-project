@@ -55,6 +55,9 @@ with `*_raw`/`*_ls` alongside; searches after it have `metric_scale: raw` in the
   `setup_knee_combined_pool.sh`: dataset pool checks/setup.
 - `outputs/`, `slurm_logs/`: a few committed job outputs/logs (early runs).
 - `tests/e2e_cpu/`: CPU end-to-end test of the notebook on synthetic data (see its README).
+- `vae_latent_distribution.py` (+ `run_vae_latent_check.sbatch`): is the MRI-VAE latent (Z_SOURCE
+  "mri_vae") normally distributed? Encodes the 30 tuning images, per-channel + pooled stats,
+  histograms/Q-Q plots in `CKPT_ROOT/diagnostics/vae_latent/`.
 
 ## How it runs
 

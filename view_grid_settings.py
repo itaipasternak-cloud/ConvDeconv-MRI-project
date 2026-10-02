@@ -57,14 +57,20 @@ def parse_settings(text):
     return [(float(d), float(tv)) for d, tv in (p.split(":") for p in text.split(","))]
 
 
-def load_notebook(repo_dir):
+def load_notebook(repo_dir, skip_markers=()):
     """Execute the notebook's setup cells (everything before Section 6.5's grid search) into one
-    namespace, exactly as a SLURM run would, and return that namespace."""
+    namespace, exactly as a SLURM run would, and return that namespace. Cells containing any of
+    `skip_markers` are skipped too. Shell lines (`!pip install ...`, Section 4's MRI-VAE setup)
+    run through a minimal get_ipython() stand-in."""
+    import subprocess
+    import types
     from IPython.core.inputtransformer2 import TransformerManager
     transform = TransformerManager().transform_cell
     with open(os.path.join(repo_dir, NOTEBOOK)) as f:
         nb = json.load(f)
-    ns = {"__name__": "__notebook__", "REPO_DIR": repo_dir, "IN_COLAB": False}
+    shell = types.SimpleNamespace(system=lambda cmd: subprocess.run(cmd, shell=True, check=True))
+    ns = {"__name__": "__notebook__", "REPO_DIR": repo_dir, "IN_COLAB": False,
+          "get_ipython": lambda: shell}
     for cell in nb["cells"]:
         if cell["cell_type"] != "code":
             continue
@@ -75,6 +81,8 @@ def load_notebook(repo_dir):
         if "skip-slurm" in tags or "no-unattended" in tags:
             continue
         if "REPO_SLUG" in src:  # Section 1: git pull / pip install / git identity -- not needed here
+            continue
+        if any(m in src for m in skip_markers):
             continue
         exec(compile(transform(src), "<notebook cell>", "exec"), ns)
     return ns
