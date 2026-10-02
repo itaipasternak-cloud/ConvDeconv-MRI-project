@@ -82,6 +82,7 @@ OUT_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_single_image_${STAMP}.ipynb"
 # run_notebook.sbatch, which strip both tags to skip straight to the batch pipeline.
 jupyter nbconvert \
     --to notebook \
+    --TagRemovePreprocessor.enabled=True \
     --TagRemovePreprocessor.remove_cell_tags='["no-unattended"]' \
     --output "$(basename "$FILTERED_NOTEBOOK")" \
     --output-dir "$OUT_DIR" \

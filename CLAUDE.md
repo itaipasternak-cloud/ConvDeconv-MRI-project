@@ -22,11 +22,13 @@ set up but not yet run at scale). On top of the original ConvDecoder it adds:
   ESPIRiT sensitivity maps with fixed ACS width, Optuna + exhaustive grid hyperparameter search.
 
 Metrics everywhere: PSNR, SSIM, MS-SSIM, VIF (higher better), NMSE, HFEN (lower better).
-The standard columns compare normalize(gt) with normalize(rec) (each divided by its OWN max), which
-penalizes a bright artifact pixel or extra noise everywhere. Since 2026-10-01 the grid search and
-batch also record `*_raw` (no rescaling -- rec is already on gt's scale), `*_ls` (least-squares
-brightness match) and `PSNR_fg`/`SSIM_fg` (raw, anatomy only); see `compute_metric_variants()`.
-Which convention the paper reports is still to be decided (being compared with view_grid_settings.py).
+**All metrics are on the raw intensity scale** (`to_metric_scale()`, decided 2026-10-02): the
+reconstruction is NOT rescaled; gt and rec are both divided by gt's max (rec is already on gt's
+scale -- reconstruct() undoes scaling_factor). The old convention, normalize() = each image divided
+by its OWN max, penalized one bright artifact pixel or extra noise everywhere (a fit scored 22.3 dB
+that way vs 31.2 dB raw). Anatomy-only `PSNR_fg`/`SSIM_fg` (`anatomy_metrics()`) are recorded next
+to them. grid_v2-v4 results are max-normalized only; grid_v5's standard columns are max-normalized
+with `*_raw`/`*_ls` alongside; searches after it have `metric_scale: raw` in their manifest.
 
 ## Where things live
 
@@ -62,8 +64,10 @@ Which convention the paper reports is still to be decided (being compared with v
 Colab (Google Drive paths) is still supported by the notebook but is no longer the main path.
 
 Every sbatch script does the same thing: `jupyter nbconvert` strips cells tagged `skip-slurm`
-(Sections 7-11 single-image demo) and `no-unattended` (Section 2.1 config GUI, Section 15 git push),
-then `papermill`
+(Sections 7-11 and 12.2-12.4, the single-image demos) and `no-unattended` (Section 2.1 config GUI,
+Section 15 git push) -- this needs `--TagRemovePreprocessor.enabled=True`, which was missing until
+2026-10-02, so every earlier job (all batches, grid_v2-v5) ran those cells too, including Section
+7's 10,000-iteration demo fit. Then `papermill`
 executes the notebook headless into `outputs/`. Config is changed per job via `CD_<NAME>`
 environment variables (e.g. `CD_K_VALUE=1`), registered in Section 2's override loop -- add a
 new toggle to that list if a job needs to override it.
@@ -91,10 +95,12 @@ Main scripts:
 
 - Default config: `convdecoder_dcse`, uniform z, Huber+TV, variance early stopping, LR schedule on,
   `K_VALUE=4`, guided init from different images, `ACCEL_NUM_ITERS=1350`, `SEED=0`.
+- **Section 2 defaults since 2026-10-02: `HUBER_DELTA=0.14`, `TV_WEIGHT=1.2e-3` (grid_v5's
+  winner)**, one set for all regimes (`USE_SEPARATE_ACCEL_PARAMS=False`, so `ACCEL_*` mirror them)
+  until the accelerated regime gets its own grid search.
 - **Previous grid search** (g1-g5 + u1-u14, 81 combos, 13 images, composite score, scored
   WITHOUT data consistency and with a different seed than the batch) picked `HUBER_DELTA=0.36`,
-  `TV_WEIGHT=3.5e-05`, still the Section 2 defaults (one set for all regimes;
-  `USE_SEPARATE_ACCEL_PARAMS=False` so `ACCEL_*` mirror them).
+  `TV_WEIGHT=3.5e-05`.
 - `KAVG_BATCH_MANUAL_EXCLUDE` holds 6 knee files dropped from the batch on purpose.
 - **The grid winner made the 100-image batch results worse**: Run A 32.3 dB, K-ensemble 33.3 dB
   PSNR. Replaced by the rebuilt grid search (Section 6.5, `grid_v2`): same fit/scoring path as the
@@ -120,8 +126,13 @@ Main scripts:
   so grid_v2-v4's fine ranking is unreliable.
   **grid_v5** = the full grid, delta [0.03 ... 2.6, 100] x TV [2e-6 ... 7.5e-3] (80 settings x
   30 images = 2400 fits, same tuning images as grid_v2), seeded masks, raw metrics recorded. Rank
-  with `analyze_grid_search.py --grid-dir .../grid_v5 --scale raw --plot`. Then set the winner in
-  Section 2 and run the 100-image Run A + K-ensemble batches.
+  with `analyze_grid_search.py --grid-dir .../grid_v5 --scale raw --plot`. **Result (job 98181):
+  winner (0.14, 1.2e-3), PSNR 34.19 dB / SSIM 0.876** (raw), tied with (0.065, 1.2e-3), (0.14,
+  4.75e-4), (0.3, 1.2e-3), (0.65, 1.2e-3); (0.3, 1.2e-3) had the top score/PSNR (34.26) but failed
+  the SSIM guard. TV matters, delta doesn't: TV 1.2e-3 is best for every delta 0.065-0.65 and is
+  inside the grid; delta 0.065-0.65 changes PSNR < 0.15 dB; MSE (delta 100) is ~2.3 dB worse. VIF
+  falls as TV rises (0.80 at the winner vs ~0.86 at low TV) while HFEN improves. +1.17 dB / +0.034
+  SSIM over the original default (0.14, 1.2e-5).
 - Fixed evaluation set (2026-10-01): the delta-0.36 run's lists were copied to
   `selections/kavg_batch_selection_n100.json`, `kavg_ref_selection_kavg4.json`,
   `kavg_ref_selection_kavg1.json`, and `kavg_batch_selection_n1.json` = its first image (so a
@@ -151,11 +162,16 @@ Main scripts:
 
 - Goal: a paper accepted in a Q1/Q2 journal, then the thesis built on it. Choose the
   methodologically right option over matching how the original ConvDecoder paper did things.
-- Next, in order: grid_v5 -> set its winner in Section 2 -> metric cleanup (raw-scale metrics
-  become the standard columns, max-normalized ones dropped; record iterations actually used per
-  batch fit, for the equal-compute claim) -> 1-image tests of both batch scripts -> 100-image Run
-  A + K-ensemble batches -> a separate grid search for the accelerated (guided-init, ACCEL_*)
-  regime's HUBER_DELTA/TV_WEIGHT.
+- Done 2026-10-02: grid_v5, its winner in Section 2, raw-scale metrics as the standard, batch rows
+  record `Iters_Total`/`Fit_Seconds_Total` (sum over the K members; reference fits excluded).
+  Next, in order: 1-image tests of both batch scripts -> 100-image Run A + K-ensemble batches -> a
+  separate grid search for the accelerated (guided-init, ACCEL_*) regime's HUBER_DELTA/TV_WEIGHT.
+- Paper scope (one article; don't draft text until asked): training-free + ground-truth-free
+  (settings from the data -- delta from the noise level, TV by the discrepancy principle --
+  validated against grid_v5 as the oracle), compute-matched, calibrated uncertainty (conformal,
+  AUSE, fastMRI+ pathology), high-field -> low-field (incl. high-field references guiding
+  low-field fits); with baselines (CS L1-wavelet, original ConvDecoder, DIP/Deep Decoder,
+  pretrained fastMRI U-Net/VarNet), ablations, knee + brain, 4x and 8x, low-field data.
 - Brain is still planned. Later: more anatomies and acceleration factors, confidence
   (uncertainty) maps, and low-field MRI.
 - Speed over bit-for-bit reproducibility for now: `cudnn.benchmark = True` stays, so refitting the

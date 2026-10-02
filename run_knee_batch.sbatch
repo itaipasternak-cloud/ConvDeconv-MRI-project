@@ -87,6 +87,7 @@ OUT_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_knee_${STAMP}.ipynb"
 # strips only "no-unattended".
 jupyter nbconvert \
     --to notebook \
+    --TagRemovePreprocessor.enabled=True \
     --TagRemovePreprocessor.remove_cell_tags='["skip-slurm", "no-unattended"]' \
     --output "$(basename "$FILTERED_NOTEBOOK")" \
     --output-dir "$OUT_DIR" \

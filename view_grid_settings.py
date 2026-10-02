@@ -15,12 +15,12 @@ Two differences from the grid search, both on purpose:
     (grid_v2-v4 ran before the notebook seeded its masks, so they compared settings on different
     masks; here the comparison is exact, and a preempted job resumes on the same masks. These
     filename-seeded masks differ from the notebook's own per-image masks, mask_seed_for().)
-  - Metrics are reported under three intensity-scale conventions (compute_metric_variants(),
-    notebook Section 5): "max" -- the notebook's standard, each image divided by its own brightest
-    pixel, so one bright artifact pixel darkens the whole reconstruction; "raw" -- no rescaling
-    (reconstruct() already returns gt's scale); "ls" -- least-squares brightness match. Plus
-    raw-scale PSNR/SSIM on the anatomy only ("knee", foreground_mask()), since strong TV also
-    flattens background noise.
+  - Metrics are reported under three intensity-scale conventions: "raw" -- the notebook's
+    standard (to_metric_scale(), Section 5: no rescaling, both divided by gt's max); "max" -- each
+    image divided by its own brightest pixel (the old standard, where one bright artifact pixel
+    darkens the whole reconstruction); "ls" -- least-squares brightness match. Plus raw-scale
+    PSNR/SSIM on the anatomy only ("knee", anatomy_metrics()), since strong TV also flattens
+    background noise.
 
 Output (CKPT_ROOT/grid_search/viewer/ by default):
   <image>.png        rows: full image / |error| / zoomed patch; columns: GT, zero-filled, settings
@@ -220,18 +220,18 @@ def main():
             recs[(d, tv)] = (rec_raw, iters)
             print(f"{fname} delta={d:g} tv={tv:g}: done in {time.time() - t0:.0f}s ({iters} iter)")
 
-        # Three intensity-scale conventions per fit (see compute_metric_variants() in Section 5):
-        # "max" = the notebook's standard normalize() of each image by its own max, "raw" = no
-        # rescaling, "ls" = least-squares brightness match. PSNR_fg/SSIM_fg: raw, anatomy only.
+        # Three intensity-scale conventions per fit: "raw" = the notebook's standard
+        # (to_metric_scale()), "max" = each image divided by its own max (the old standard),
+        # "ls" = rec times the least-squares factor <gt, rec>/<rec, rec>. PSNR_fg/SSIM_fg: raw,
+        # anatomy only.
+        cam = ns["compute_all_metrics"]
         for (d, tv), (rec_raw, iters) in recs.items():
             base = dict(Image=fname, Huber_Delta=d, TV_Weight=tv, Iters_Run=iters)
-            m_max = ns["compute_all_metrics"](normalize(gt_raw), normalize(rec_raw))
-            v = ns["compute_metric_variants"](gt_raw, rec_raw)
-            rows.append({**base, "Scale": "max", **m_max})
-            for scale in ("raw", "ls"):
-                m = {k[:-len(scale) - 1]: val for k, val in v.items() if k.endswith(f"_{scale}")}
-                extra = {"PSNR_fg": v["PSNR_fg"], "SSIM_fg": v["SSIM_fg"]} if scale == "raw" else {}
-                rows.append({**base, "Scale": scale, **m, **extra})
+            g, r = ns["to_metric_scale"](gt_raw, rec_raw)
+            a = np.sum(g * r) / np.sum(r * r)
+            rows.append({**base, "Scale": "raw", **cam(g, r), **ns["anatomy_metrics"](g, r)})
+            rows.append({**base, "Scale": "max", **cam(normalize(gt_raw), normalize(rec_raw))})
+            rows.append({**base, "Scale": "ls", **cam(g, a * r)})
 
         # --- figure: full / |error| / zoom, columns GT, zero-filled, then each setting. All panels
         # on the raw scale (divided by gt's max), so a brightness mismatch is visible as such. ---

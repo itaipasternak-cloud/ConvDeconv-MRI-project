@@ -32,9 +32,11 @@ summary_combined.csv / best_combined.json / grid_heatmaps_combined.png.
 Intensity scale (--scale): the standard metric columns compare each image divided by its OWN
 max, so one bright artifact pixel in a reconstruction darkens all of it and is scored as error
 everywhere (view_grid_settings.py found a fit scoring 22.3 dB that way vs 31.2 dB on the raw
-scale). Searches since grid_v5 also record raw-scale (*_raw), least-squares (*_ls) and
-anatomy-only (PSNR_fg/SSIM_fg) metrics -- see compute_metric_variants() in the notebook.
---scale auto (default) ranks on raw when every search has it, otherwise on the standard columns.
+scale). grid_v5 recorded raw-scale (*_raw) and least-squares (*_ls) columns next to the standard
+max-normalized ones. Since then the notebook computes every metric on the raw scale
+(to_metric_scale()), so the standard columns ARE raw -- manifest config "metric_scale": "raw".
+Anatomy-only PSNR_fg/SSIM_fg are reported alongside when present.
+--scale auto (default) ranks on raw whenever the results have it, otherwise on max.
 
 Usage:
     python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/grid_v5 --scale raw --plot
@@ -117,13 +119,20 @@ def main():
 
     df = pd.concat(frames, ignore_index=True)
 
+    # What the standard PSNR/SSIM/... columns hold: "raw" for searches made after the notebook
+    # switched to raw-scale metrics, "max" (no key) for grid_v5 and earlier.
+    bases = {m["config"].get("metric_scale", "max") for m in manifests}
+    assert len(bases) == 1, f"these searches' metric columns are on different scales ({bases}) -- rank them separately"
+    base = bases.pop()
+
     def has_scale(scale):
-        return all(f"{m}_{scale}" in df.columns and df[f"{m}_{scale}"].notna().any() for m in METRICS)
+        return scale == base or all(f"{m}_{scale}" in df.columns and df[f"{m}_{scale}"].notna().any()
+                                    for m in METRICS)
     scale = args.scale if args.scale != "auto" else ("raw" if has_scale("raw") else "max")
-    if scale != "max":
-        if not has_scale(scale):
-            raise SystemExit(f"--scale {scale}: these results have no {scale}-scale metrics (searches "
-                             f"before grid_v5 only recorded the max-normalized ones). Use --scale max.")
+    if not has_scale(scale):
+        raise SystemExit(f"--scale {scale}: these results have no {scale}-scale metrics (their standard "
+                         f"columns are {base}-scale). Use --scale {base}.")
+    if scale != base:
         for m in METRICS:
             df[m] = df[f"{m}_{scale}"]
     print({"max": "Metrics: standard (each image divided by its own max).",

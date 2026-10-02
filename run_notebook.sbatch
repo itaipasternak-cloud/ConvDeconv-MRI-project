@@ -69,6 +69,7 @@ OUT_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_${STAMP}.ipynb"
 # Add Cell Tag -> type the tag name.
 jupyter nbconvert \
     --to notebook \
+    --TagRemovePreprocessor.enabled=True \
     --TagRemovePreprocessor.remove_cell_tags='["skip-slurm", "no-unattended"]' \
     --output "$(basename "$FILTERED_NOTEBOOK")" \
     --output-dir "$OUT_DIR" \

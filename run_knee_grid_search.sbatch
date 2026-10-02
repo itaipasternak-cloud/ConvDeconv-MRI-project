@@ -94,6 +94,7 @@ OUT_NOTEBOOK="${OUT_DIR}/${NOTEBOOK%.ipynb}_knee_grid_${STAMP}.ipynb"
 
 jupyter nbconvert \
     --to notebook \
+    --TagRemovePreprocessor.enabled=True \
     --TagRemovePreprocessor.remove_cell_tags='["skip-slurm", "no-unattended"]' \
     --output "$(basename "$FILTERED_NOTEBOOK")" \
     --output-dir "$OUT_DIR" \
