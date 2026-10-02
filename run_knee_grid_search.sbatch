@@ -11,6 +11,9 @@
 # grid_v3 (4x3 x 30 = 360 fits, 60 copied from grid_v2): ~300 fits, ~6h per task.
 # grid_v5 (8x10 x 30 = 2400 fits, full grid on seeded masks): fits stop early at ~1500-6000 of
 # 6000 iterations, 2-5 min each (jobs 98026/98111) -> ~140 GPU-hours, ~12h per task.
+# grid_accel_v1 (GRID_REGIME="accel", same 8x10 x 30 grid): each item is a 4-member ensemble of
+# 1350-iteration guided fits, so 9600 member fits (~1-1.5 min each) -> ~160-240 GPU-hours, ~14-20h
+# per task, plus ~0.5h at the start while 4 tasks fit the 4 reference fits (once; cached).
 # --time is 30h for margin; watch the first few "(...s, ETA ...h)" lines in the logs. A task that
 # hits the time limit is NOT requeued -- resubmit just that task (--array=<i>); it resumes.
 #

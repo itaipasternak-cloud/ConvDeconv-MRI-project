@@ -54,6 +54,7 @@ with `*_raw`/`*_ls` alongside; searches after it have `metric_scale: raw` in the
   acquisition/coil group after existing selections. `check_*_pool.py`,
   `setup_knee_combined_pool.sh`: dataset pool checks/setup.
 - `outputs/`, `slurm_logs/`: a few committed job outputs/logs (early runs).
+- `tests/e2e_cpu/`: CPU end-to-end test of the notebook on synthetic data (see its README).
 
 ## How it runs
 
@@ -91,7 +92,7 @@ Main scripts:
   `sbatch --array=0-3 --export=ALL,RERUN_SHARD=5,RERUN_PARTS=4 run_knee_grid_search.sbatch`.
   Each search's name/grid/image reuse is set in Section 2 (`GRID_SEARCH_NAME`, `GRID_REUSE_FROM`, ...).
 
-## Current state (as of 2026-10-01)
+## Current state (as of 2026-10-02)
 
 - Default config: `convdecoder_dcse`, uniform z, Huber+TV, variance early stopping, LR schedule on,
   `K_VALUE=4`, guided init from different images, `ACCEL_NUM_ITERS=1350`, `SEED=0`.
@@ -158,27 +159,58 @@ Main scripts:
   method's, which is why Run A uses 6000 iterations (roughly 9000 vanilla-equivalent, per Itai).
   Don't raise iteration counts without checking this.
 
-## Goals and roadmap (as of 2026-10-01)
+## Goals and roadmap (as of 2026-10-02)
 
-- Goal: a paper accepted in a Q1/Q2 journal, then the thesis built on it. Choose the
-  methodologically right option over matching how the original ConvDecoder paper did things.
-- Done 2026-10-02: grid_v5, its winner in Section 2, raw-scale metrics as the standard, batch rows
-  record `Iters_Total`/`Fit_Seconds_Total` (sum over the K members; reference fits excluded).
-  Next, in order: 1-image tests of both batch scripts -> 100-image Run A + K-ensemble batches -> a
-  separate grid search for the accelerated (guided-init, ACCEL_*) regime's HUBER_DELTA/TV_WEIGHT.
-- Paper scope (one article; don't draft text until asked): training-free + ground-truth-free
-  (settings from the data -- delta from the noise level, TV by the discrepancy principle --
-  validated against grid_v5 as the oracle), compute-matched, calibrated uncertainty (conformal,
-  AUSE, fastMRI+ pathology), high-field -> low-field (incl. high-field references guiding
-  low-field fits); with baselines (CS L1-wavelet, original ConvDecoder, DIP/Deep Decoder,
-  pretrained fastMRI U-Net/VarNet), ablations, knee + brain, 4x and 8x, low-field data.
-- Brain is still planned. Later: more anatomies and acceleration factors, confidence
-  (uncertainty) maps, and low-field MRI.
-- Speed over bit-for-bit reproducibility for now: `cudnn.benchmark = True` stays, so refitting the
-  same config can stop at a different iteration and differ slightly (seen in jobs 98026/98111).
-- Open question: early stopping (variance, patience 2, 12% margin) stops fits anywhere from
-  ~1500 to 6000 of 6000 iterations, and the stopping point moves a fit's PSNR by up to ~1 dB.
-  Whether it helps vs. a fixed budget hasn't been tested -- a candidate ablation.
+Goal: ONE paper accepted in a Q1/Q2 journal, then the thesis built on it. Choose the
+methodologically right option over matching how the original ConvDecoder paper did things. Don't
+draft paper text until Itai asks.
+
+**Paper scope:** training-free + ground-truth-free (settings from the data -- delta from the noise
+level, TV by the discrepancy principle -- validated against grid_v5 as the oracle), compute-matched,
+calibrated uncertainty (conformal, AUSE, fastMRI+ pathology), high-field -> low-field (incl.
+high-field references guiding low-field fits); with baselines (CS L1-wavelet, original
+ConvDecoder, DIP/Deep Decoder, pretrained fastMRI U-Net/VarNet), ablations, knee + brain, 4x and
+8x, low-field data.
+
+Done:
+- [x] Mask seeding per image; raw-scale metrics as the standard; anatomy-only metrics.
+- [x] grid_v5 (Run A regime, full 8x10 grid): winner HUBER_DELTA=0.14, TV_WEIGHT=1.2e-3, set in
+      Section 2.
+- [x] Batch rows record iterations and fit time actually spent (equal-compute claim).
+- [x] SLURM cell stripping fixed (it had never worked); `import pandas` moved to Section 1 (the batch
+      would otherwise have crashed); derived config recomputed after the `CD_*` overrides
+      (`_derive_config()`); Run A pinned to the regular settings (`CD_USE_SEPARATE_ACCEL_PARAMS=False`).
+- [x] Accelerated grid search (`GRID_REGIME="accel"`): same 80 settings x 30 images as grid_v5,
+      each scored on the 4-member ensemble average; references at the regular settings, fit once
+      in parallel by the array tasks via `fit_reference()` (shared with Section 12.1).
+- [x] CPU end-to-end test (`tests/e2e_cpu/`).
+
+Now (submitted together):
+- [ ] **Run A, 100 images, new settings** (`run_knee_batch_runA.sbatch`). Compare with the old Run A
+      (32.3 dB) only with care: that number was max-normalized, on random masks, at 0.36/3.5e-5 --
+      three changes at once. A clean before/after needs the old Run A member checkpoints re-scored
+      on the raw scale with their own saved masks (a small script; not written yet).
+- [ ] **grid_accel_v1** (`run_knee_grid_search.sbatch`, GRID_REGIME="accel").
+
+Next, in order:
+1. Rank grid_accel_v1; if its winner differs from (0.14, 1.2e-3), set `USE_SEPARATE_ACCEL_PARAMS=True`
+   and the `ACCEL_*` values.
+2. Reference-settings sensitivity check: top few accelerated settings re-run with references fit at
+   2 other settings (`GRID_REF_HUBER_DELTA`/`GRID_REF_TV_WEIGHT`, new `GRID_SEARCH_NAME`).
+3. K-ensemble 1-image test (`run_knee_batch.sbatch 1`), then the **K-ensemble 100-image batch**.
+4. Paired analysis script: Run A vs ensemble per image (mean +/- SE, Wilcoxon), raw + anatomy
+   metrics, compute spent.
+5. Baselines; ablation table (DCSE, Huber+TV, early stopping on/off, ensemble, guided init,
+   automatic vs grid-searched settings); 8x; brain; uncertainty calibration; ground-truth-free
+   settings; low-field (check M4Raw).
+
+Decisions and open questions:
+- Speed over bit-for-bit reproducibility: `cudnn.benchmark = True` stays, so refitting the same
+  config can stop at a different iteration and differ slightly (seen in jobs 98026/98111).
+- Early stopping (variance, patience 2, 12% margin) stops fits anywhere from ~1500 to 6000 of 6000
+  iterations, and the stopping point moves a fit's PSNR by up to ~1 dB. Whether it helps vs. a
+  fixed budget is untested -- in the ablation.
+- `KAVG_WEIGHTED_ENSEMBLE=True` with `KAVG_WEIGHT_EXPONENT=0` is a plain (uniform) average.
 
 ## Rules and conventions
 
@@ -196,7 +228,10 @@ Main scripts:
   that changes the fit result must be added to `checkpoint_metadata()` (and to `RUN_TAG` if it
   changes the network structure), keeping old checkpoints loadable.
 - Anything computed from config values must be computed *after* the `CD_*` override loop, or
-  overrides are silently ignored (this bug has happened more than once).
+  overrides are silently ignored (this bug has happened more than once). Section 2's derived values
+  live in `_derive_config()`, which runs again after the loop -- add new ones there.
+- After changing the notebook, run the CPU end-to-end test (`tests/e2e_cpu/README.md`) before
+  submitting long jobs: syntax checks don't catch a name defined only in a skip-slurm cell.
 - Parallel jobs must write to distinct files (e.g. `results_shard<i>.csv`), then merge
   afterwards -- never share one output file between concurrent jobs.
 - **Image selections are fixed and must not depend on hyperparameters**: the 100-image batch

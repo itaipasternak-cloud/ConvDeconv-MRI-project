@@ -67,6 +67,11 @@ export CD_KAVG_INIT_MODE=random        # plain random init, not guided from a re
 export CD_ACCEL_NUM_ITERS=6000         # iteration count for this baseline (default accelerated
                                         # value is 1350 -- too short for a fair single-fit
                                         # baseline); 6000 per r-1.3
+# The batch pipeline fits every member with the ACCEL_* loss settings. Run A is the regular
+# (random-init, full-length) regime, so pin ACCEL_* to the regular HUBER_DELTA/TV_WEIGHT -- the
+# values grid_v5 tuned for exactly this regime -- even after the accelerated regime gets its own
+# values (USE_SEPARATE_ACCEL_PARAMS=True in Section 2).
+export CD_USE_SEPARATE_ACCEL_PARAMS=False
 
 # Same positional-arg override pattern as run_knee_batch.sbatch, for a quick test before the
 # real 100-image run:
