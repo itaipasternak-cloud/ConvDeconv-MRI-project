@@ -203,14 +203,14 @@ Next, in order:
    and the `ACCEL_*` values.
 2. Reference-settings sensitivity check: top few accelerated settings re-run with references fit at
    2 other settings (`GRID_REF_HUBER_DELTA`/`GRID_REF_TV_WEIGHT`, new `GRID_SEARCH_NAME`).
-3. K-ensemble 1-image test (`run_knee_batch.sbatch 1`), then the **K-ensemble 100-image batch**.
-4. Paired analysis script: Run A vs ensemble per image (mean +/- SE, Wilcoxon), raw + anatomy
-   metrics, compute spent.
-5. **Readout cropping** (test submitted 2026-10-02, `run_readout_crop_test.sbatch`): the readout
+3. **Readout cropping** (test submitted 2026-10-02, `run_readout_crop_test.sbatch`): the readout
    direction is fully sampled and 2x oversampled, so cropping it to the evaluated 320 rows is exact
    and ~2x cheaper per iteration (0.54x on the CPU test). If it is at least as good, adopt it in the
    notebook (option applied wherever k-space is loaded) and redo grid_v5 + the runs -- before the
    K-ensemble 100-image batch, which must use the final pipeline.
+4. K-ensemble 1-image test (`run_knee_batch.sbatch 1`), then the **K-ensemble 100-image batch**.
+5. Paired analysis script: Run A vs ensemble per image (mean +/- SE, Wilcoxon), raw + anatomy
+   metrics, compute spent.
 6. **Soft vs hard data consistency.** `reconstruct()` currently applies HARD DC: at every acquired
    k-space location the network's prediction is replaced by the measurement (Section 5,
    `apply_data_consistency()`), which also re-inserts the measurement noise. Test SOFT DC:
