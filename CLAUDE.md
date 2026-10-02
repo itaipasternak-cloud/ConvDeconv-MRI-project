@@ -55,6 +55,9 @@ with `*_raw`/`*_ls` alongside; searches after it have `metric_scale: raw` in the
   `setup_knee_combined_pool.sh`: dataset pool checks/setup.
 - `outputs/`, `slurm_logs/`: a few committed job outputs/logs (early runs).
 - `tests/e2e_cpu/`: CPU end-to-end test of the notebook on synthetic data (see its README).
+- `readout_crop_test.py` (+ `run_readout_crop_test.sbatch`): fit full (640 x 368) vs
+  readout-cropped (320 x 368, the readout oversampling removed exactly) k-space on 8 tuning images
+  x 3 TV weights, same masks/scoring; quality, iterations and time per iteration.
 - `vae_latent_distribution.py` (+ `run_vae_latent_check.sbatch`): is the MRI-VAE latent (Z_SOURCE
   "mri_vae") normally distributed? Encodes the 30 tuning images, per-channel + pooled stats,
   histograms/Q-Q plots in `CKPT_ROOT/diagnostics/vae_latent/`.
@@ -203,7 +206,12 @@ Next, in order:
 3. K-ensemble 1-image test (`run_knee_batch.sbatch 1`), then the **K-ensemble 100-image batch**.
 4. Paired analysis script: Run A vs ensemble per image (mean +/- SE, Wilcoxon), raw + anatomy
    metrics, compute spent.
-5. **Soft vs hard data consistency.** `reconstruct()` currently applies HARD DC: at every acquired
+5. **Readout cropping** (test submitted 2026-10-02, `run_readout_crop_test.sbatch`): the readout
+   direction is fully sampled and 2x oversampled, so cropping it to the evaluated 320 rows is exact
+   and ~2x cheaper per iteration (0.54x on the CPU test). If it is at least as good, adopt it in the
+   notebook (option applied wherever k-space is loaded) and redo grid_v5 + the runs -- before the
+   K-ensemble 100-image batch, which must use the final pipeline.
+6. **Soft vs hard data consistency.** `reconstruct()` currently applies HARD DC: at every acquired
    k-space location the network's prediction is replaced by the measurement (Section 5,
    `apply_data_consistency()`), which also re-inserts the measurement noise. Test SOFT DC:
    k = (lambda * k_measured + k_predicted) / (1 + lambda) at acquired locations (hard DC is
@@ -212,7 +220,7 @@ Next, in order:
    this needs NO refitting: re-score the cached Run A and K-ensemble member checkpoints under each
    lambda. Expected to matter most at low SNR (low-field). Compare hard / soft / none on raw +
    anatomy metrics; if soft wins, it also goes in the ablation table.
-6. Baselines; ablation table (DCSE, Huber+TV, early stopping on/off, ensemble, guided init,
+7. Baselines; ablation table (DCSE, Huber+TV, early stopping on/off, ensemble, guided init,
    automatic vs grid-searched settings); 8x; brain; uncertainty calibration; ground-truth-free
    settings; low-field (check M4Raw).
 
