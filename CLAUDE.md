@@ -203,7 +203,16 @@ Next, in order:
 3. K-ensemble 1-image test (`run_knee_batch.sbatch 1`), then the **K-ensemble 100-image batch**.
 4. Paired analysis script: Run A vs ensemble per image (mean +/- SE, Wilcoxon), raw + anatomy
    metrics, compute spent.
-5. Baselines; ablation table (DCSE, Huber+TV, early stopping on/off, ensemble, guided init,
+5. **Soft vs hard data consistency.** `reconstruct()` currently applies HARD DC: at every acquired
+   k-space location the network's prediction is replaced by the measurement (Section 5,
+   `apply_data_consistency()`), which also re-inserts the measurement noise. Test SOFT DC:
+   k = (lambda * k_measured + k_predicted) / (1 + lambda) at acquired locations (hard DC is
+   lambda -> infinity; no DC is lambda = 0), with lambda swept and, for the ground-truth-free
+   story, set from the noise level. DC is applied at reconstruction time, not during fitting, so
+   this needs NO refitting: re-score the cached Run A and K-ensemble member checkpoints under each
+   lambda. Expected to matter most at low SNR (low-field). Compare hard / soft / none on raw +
+   anatomy metrics; if soft wins, it also goes in the ablation table.
+6. Baselines; ablation table (DCSE, Huber+TV, early stopping on/off, ensemble, guided init,
    automatic vs grid-searched settings); 8x; brain; uncertainty calibration; ground-truth-free
    settings; low-field (check M4Raw).
 
