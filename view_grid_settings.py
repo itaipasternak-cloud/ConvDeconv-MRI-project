@@ -182,7 +182,7 @@ def main():
     for fname in images:
         stem = ns["stable_stem"](fname)
         with h5py.File(os.path.join(ns["folder"], fname), "r") as f:
-            slice_ksp = f["kspace"][f["kspace"].shape[0] // 2]
+            slice_ksp = ns["maybe_readout_crop"](f["kspace"][f["kspace"].shape[0] // 2])
         ksp_tt = torch.from_numpy(np.stack((slice_ksp.real, slice_ksp.imag), axis=-1))
         shape = {"output_depth": ksp_tt.shape[0] * 2, "out_size": tuple(ksp_tt.shape[1:-1])}
         net_for_scale = ns["build_network"](shape)

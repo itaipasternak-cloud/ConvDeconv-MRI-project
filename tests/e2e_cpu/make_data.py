@@ -2,16 +2,17 @@
 import h5py, numpy as np, json, sys
 root = sys.argv[1]
 rng = np.random.default_rng(0)
-H, W, C = 320, 336, 4
+H, W, C = 640, 368, 4   # real knee size (readout x phase-encode), so READOUT_CROP works
 yy, xx = np.mgrid[:H, :W]
 for i in range(14):
     img = np.zeros((H, W), complex)
-    knee = ((yy - H/2) / (120 + 5*i)) ** 2 + ((xx - W/2) / 110) ** 2 < 1
+    knee = ((yy - H/2) / (100 + 4*i)) ** 2 + ((xx - W/2) / 110) ** 2 < 1
     img[knee] = 1 + 0.3 * np.sin(xx[knee] / (5 + i % 3)) + 0.2 * np.cos(yy[knee] / 9)
     img *= np.exp(1j * 0.002 * (xx - W/2))
     maps = [np.exp(-(((yy - cy) / 200) ** 2 + ((xx - cx) / 200) ** 2)) for cy, cx in [(0, 0), (0, W), (H, 0), (H, W)]]
     coils = np.stack([img * m for m in maps]) + 0.01 * (rng.standard_normal((C, H, W)) + 1j * rng.standard_normal((C, H, W)))
     ksp = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(coils, axes=(-2, -1)), norm="ortho"), axes=(-2, -1)) * 1e-4
+    ksp[..., :24] = 0; ksp[..., -24:] = 0      # fastMRI-style zero padding in phase-encode
     with h5py.File(f"{root}/data/file{1000+i}.h5", "w") as f:
         f.create_dataset("kspace", data=ksp[None].astype(np.complex64))   # 1 slice
         f.attrs["acquisition"] = "CORPD_FBK"

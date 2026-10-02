@@ -24,7 +24,10 @@
 # Progress: tail slurm_logs/grid-<jobid>_<task>.out
 # Results:  python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/<GRID_SEARCH_NAME> --scale raw --plot
 #
-# If you change the number of tasks, change BOTH --array and GRID_NUM_SHARDS below.
+# If you change the number of tasks, change BOTH --array and GRID_NUM_SHARDS, e.g. a 3-task search:
+#   sbatch --array=0-2 --export=ALL,GRID_NUM_SHARDS=3 run_knee_grid_search.sbatch
+# grid_crop_v1 (3x3 x 30 = 270 Run A-regime fits on the readout-cropped pipeline, ~1-1.5 min each):
+#   ~6 GPU-hours -> 3 tasks of ~2h, submitted as above.
 #
 # Rerunning ONE shard that failed (e.g. shard 5), split over several GPUs so it finishes faster --
 # fits it already recorded are skipped:
@@ -46,7 +49,7 @@
 #SBATCH --mem=64G
 #SBATCH --time=30:00:00
 
-GRID_NUM_SHARDS=12
+GRID_NUM_SHARDS=${GRID_NUM_SHARDS:-12}   # override for a smaller search, together with --array (see above)
 
 # --- Setup Environment ---
 mkdir -p slurm_logs outputs

@@ -189,40 +189,38 @@ Done:
 - [x] Accelerated grid search (`GRID_REGIME="accel"`): same 80 settings x 30 images as grid_v5,
       each scored on the 4-member ensemble average; references at the regular settings, fit once
       in parallel by the array tasks via `fit_reference()` (shared with Section 12.1).
-- [x] CPU end-to-end test (`tests/e2e_cpu/`).
+- [x] CPU end-to-end test (`tests/e2e_cpu/`, 640x368 synthetic data).
 
-Now (submitted together):
-- [ ] **Run A, 100 images, new settings** (`run_knee_batch_runA.sbatch`). Compare with the old Run A
-      (32.3 dB) only with care: that number was max-normalized, on random masks, at 0.36/3.5e-5 --
-      three changes at once. A clean before/after needs the old Run A member checkpoints re-scored
-      on the raw scale with their own saved masks (a small script; not written yet).
-- [ ] **grid_accel_v1** (`run_knee_grid_search.sbatch`, GRID_REGIME="accel").
+- [x] **Readout cropping adopted (2026-10-02):** `READOUT_CROP=True` (Section 2) removes the 2x
+      readout oversampling at every k-space load (`maybe_readout_crop()`, Section 5): 640x368 ->
+      320x368, ~1.64x faster per iteration, ~30% less time per fit; quality within noise of full
+      k-space at 8 tuning images (crop test, job 98647). Tag `_rocrop` keeps it apart from all
+      earlier full-k-space results (grid_v2-v5, Run A job 98645, the cancelled grid_accel_v1).
 
-Next, in order:
-1. Rank grid_accel_v1; if its winner differs from (0.14, 1.2e-3), set `USE_SEPARATE_ACCEL_PARAMS=True`
-   and the `ACCEL_*` values.
-2. Reference-settings sensitivity check: top few accelerated settings re-run with references fit at
-   2 other settings (`GRID_REF_HUBER_DELTA`/`GRID_REF_TV_WEIGHT`, new `GRID_SEARCH_NAME`).
-3. **Readout cropping** (test submitted 2026-10-02, `run_readout_crop_test.sbatch`): the readout
-   direction is fully sampled and 2x oversampled, so cropping it to the evaluated 320 rows is exact
-   and ~2x cheaper per iteration (0.54x on the CPU test). If it is at least as good, adopt it in the
-   notebook (option applied wherever k-space is loaded) and redo grid_v5 + the runs -- before the
-   K-ensemble 100-image batch, which must use the final pipeline.
-4. K-ensemble 1-image test (`run_knee_batch.sbatch 1`), then the **K-ensemble 100-image batch**.
-5. Paired analysis script: Run A vs ensemble per image (mean +/- SE, Wilcoxon), raw + anatomy
-   metrics, compute spent.
-6. **Soft vs hard data consistency.** `reconstruct()` currently applies HARD DC: at every acquired
-   k-space location the network's prediction is replaced by the measurement (Section 5,
-   `apply_data_consistency()`), which also re-inserts the measurement noise. Test SOFT DC:
-   k = (lambda * k_measured + k_predicted) / (1 + lambda) at acquired locations (hard DC is
-   lambda -> infinity; no DC is lambda = 0), with lambda swept and, for the ground-truth-free
-   story, set from the noise level. DC is applied at reconstruction time, not during fitting, so
-   this needs NO refitting: re-score the cached Run A and K-ensemble member checkpoints under each
-   lambda. Expected to matter most at low SNR (low-field). Compare hard / soft / none on raw +
-   anatomy metrics; if soft wins, it also goes in the ablation table.
-7. Baselines; ablation table (DCSE, Huber+TV, early stopping on/off, ensemble, guided init,
-   automatic vs grid-searched settings); 8x; brain; uncertainty calibration; ground-truth-free
-   settings; low-field (check M4Raw).
+Next, in order (all on the cropped pipeline):
+1. **grid_crop_v1** (Run A regime, delta [0.065, 0.14, 0.3] x TV [4.75e-4, 1.2e-3, 3e-3], same 30
+   images): `sbatch --array=0-2 --export=ALL,GRID_NUM_SHARDS=3 run_knee_grid_search.sbatch`.
+   Confirms or moves the regular winner (0.14, 1.2e-3); set it in Section 2 if it moves.
+2. Then together: **Run A cropped, 100 images** (`run_knee_batch_runA.sbatch`) and the **accelerated
+   search, cropped** (Section 2: GRID_SEARCH_NAME="grid_accel_crop_v1", GRID_REGIME="accel", the
+   8 x 10 grid; `run_knee_grid_search.sbatch`). Don't submit Run A while the full-k-space Run A
+   (98645) is still running -- if it was requeued after the crop push it now runs cropped itself.
+3. Adopt the accelerated winner (`USE_SEPARATE_ACCEL_PARAMS=True` + `ACCEL_*` if it differs).
+4. Reference-settings sensitivity check (`GRID_REF_HUBER_DELTA`/`GRID_REF_TV_WEIGHT`).
+5. K-ensemble 1-image test, then the **K-ensemble 100-image batch**.
+6. Paired analysis script: Run A vs ensemble per image (mean +/- SE, Wilcoxon), raw + anatomy
+   metrics, compute actually spent. Run A full (98645) vs cropped gives a 100-image crop comparison.
+7. **Soft vs hard data consistency** -- re-score cached fits, no refitting (see below).
+8. Baselines; ablation table (DCSE, Huber+TV, early stopping on/off, ensemble, guided init,
+   automatic vs grid-searched settings, readout cropping); 8x; brain; uncertainty calibration;
+   ground-truth-free settings; low-field (check M4Raw).
+
+Soft vs hard DC: `reconstruct()` applies HARD DC -- at every acquired k-space location the
+prediction is replaced by the measurement (`apply_data_consistency()`), re-inserting its noise.
+SOFT DC: k = (lambda * k_measured + k_predicted) / (1 + lambda) at acquired locations (hard =
+lambda -> infinity, none = lambda 0), lambda swept and, for the ground-truth-free story, set from
+the noise level. Applied at reconstruction time only, so cached Run A / K-ensemble checkpoints are
+just re-scored. Expected to matter most at low SNR (low-field).
 
 Decisions and open questions:
 - Speed over bit-for-bit reproducibility: `cudnn.benchmark = True` stays, so refitting the same

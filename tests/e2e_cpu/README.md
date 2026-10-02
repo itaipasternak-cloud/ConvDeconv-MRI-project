@@ -2,7 +2,7 @@
 
 Runs `MRI_ConvDeconv_variance_earlystop.ipynb` the way a SLURM job does -- cells tagged `skip-slurm` /
 `no-unattended` stripped, config from `CD_*` environment variables -- on a CPU, with 14 small synthetic
-k-space files (4 coils, 320x336) and the network shrunk to 32 channels. It checks that the code paths
+k-space files (4 coils, 640x368 like real knee data) and the network shrunk to 32 channels. It checks that the code paths
 run end to end (grid search, batch, resume, checkpoint reuse), not reconstruction quality. Each run
 takes seconds to a minute. Use it before submitting a long cluster job after changing the notebook.
 
