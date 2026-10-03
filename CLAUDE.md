@@ -275,6 +275,10 @@ Decisions and open questions:
 
 ## Notes for the paper (briefing for whoever writes it -- notes, not drafted text)
 
+**Keep this section current** (Itai, 2026-10-03): update it in the same session as every new result,
+decision or method change -- exact values, verified against the code; mark provisional numbers,
+remove obsolete ones -- so it is precise when the writing starts.
+
 Don't draft until Itai asks. One article (Q1/Q2), knee first; brain, more accelerations, uncertainty
 maps and low-field are part of the plan. All numbers below are provisional -- take final numbers
 from the final runs' CSVs (`CKPT_ROOT/results/`, `CKPT_ROOT/grid_search/*/summary_*.csv`).
@@ -375,6 +379,7 @@ ESPIRiT (Uecker et al. 2014), fastMRI (Zbontar et al.), Schlemper et al. 2018 (D
 - **Pushing to `master` changes what cluster jobs run.** Section 1 runs `git pull` when a job
   starts, so a queued job picks up whatever is on `master` at that moment. Don't push half-done
   notebook changes while jobs are queued.
+- **Update "Notes for the paper"** whenever a result, decision or method detail changes.
 - **Never re-enable the notebook's auto git push** (Section 15). It once pushed to `master`
   unasked and collided with other work. Commit and push manually.
 - **Do not commit** checkpoints, large results, or `download_*.sbatch` (contain presigned AWS URLs;
