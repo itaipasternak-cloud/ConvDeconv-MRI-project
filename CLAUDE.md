@@ -57,6 +57,10 @@ alongside; searches after it have `metric_scale: raw` in their manifest.
   `setup_knee_combined_pool.sh`: dataset pool checks/setup.
 - `outputs/`, `slurm_logs/`: a few committed job outputs/logs (early runs).
 - `tests/e2e_cpu/`: CPU end-to-end test of the notebook on synthetic data (see its README).
+- `soft_dc_test.py` (+ `run_soft_dc_test.sbatch`): soft vs hard data consistency, re-scoring a
+  finished batch run's saved fits for lambda in {0 (no DC), 0.03 ... 10, inf (hard)} -- no fitting;
+  paired differences to hard DC with Wilcoxon p-values. `--full-kspace` for runs made before
+  readout cropping (e.g. Run A job 98645), `--k 4 --init guided` for the K-ensemble.
 - `show_batch_results.py` (+ `run_show_batch_results.sbatch`): figures of a finished batch run's
   reconstructions (best / median / worst by PSNR, or chosen images), reloaded from the saved
   member fits -- no fitting; also re-checks the metrics against the run's CSV.
@@ -241,7 +245,8 @@ Next, in order (all on the cropped pipeline):
 5. K-ensemble 1-image test, then the **K-ensemble 100-image batch**.
 6. Paired analysis script: Run A vs ensemble per image (mean +/- SE, Wilcoxon), raw + anatomy
    metrics, compute actually spent. Run A full (98645) vs cropped gives a 100-image crop comparison.
-7. **Soft vs hard data consistency** -- re-score cached fits, no refitting (see below).
+7. **Soft vs hard data consistency** -- re-score cached fits, no refitting (see below). First run
+   2026-10-03 on the full-k-space Run A (job 98645): `sbatch run_soft_dc_test.sbatch --full-kspace`.
 8. Baselines; ablation table (DCSE, Huber+TV, early stopping on/off, ensemble, guided init,
    automatic vs grid-searched settings, readout cropping); 8x; brain; uncertainty calibration;
    ground-truth-free settings; low-field (check M4Raw).
