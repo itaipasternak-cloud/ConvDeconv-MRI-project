@@ -273,30 +273,102 @@ Decisions and open questions:
   fixed budget is untested -- in the ablation.
 - `KAVG_WEIGHTED_ENSEMBLE=True` with `KAVG_WEIGHT_EXPONENT=0` is a plain (uniform) average.
 
-## Notes for the paper (to use when writing it -- not drafted text)
+## Notes for the paper (briefing for whoever writes it -- notes, not drafted text)
 
-- **Soft data consistency.** For coil c at k-space location r, with network prediction
-  k_hat_c(r), measurement y_c(r) (times the fit's scaling factor) and acquired set Omega:
-  k_out_c(r) = (lambda * y_c(r) + k_hat_c(r)) / (1 + lambda) for r in Omega; k_hat_c(r) otherwise.
-  lambda = 0 is no DC, lambda -> infinity is hard DC. At each acquired location this is the
-  minimizer of |k - k_hat_c(r)|^2 + lambda * |k - y_c(r)|^2 -- a weighted compromise between the
-  network and the measurement. Statistically, with measurement-noise variance sigma_n^2 and
-  network-prediction-error variance sigma_p^2, the optimal weight is
-  lambda* = sigma_p^2 / sigma_n^2 (noisier data -> smaller lambda) -- the basis for a
-  ground-truth-free choice of lambda from the noise level. Same form as the data-consistency layer
-  of Schlemper et al.'s cascaded CNN (IEEE TMI 2018) -- verify the exact citation.
-- **Metrics:** whole-image PSNR/SSIM/MS-SSIM/VIF/NMSE/HFEN on the central 320 x 320 (background
-  included), raw scale (reconstruction not rescaled; both divided by the ground truth's max).
-  Middle slice of each volume, data range from that slice -- NOT the fastMRI leaderboard's
-  volume-wise evaluation; say so. No knee-only metrics in the paper.
-- **PSNR penalizes denoising when the reference is noisy:** the lowest-scoring images (e.g.
-  file1001022) have noisy fully-sampled references the reconstruction doesn't (and shouldn't)
-  reproduce -- worth a sentence; it also supports reporting SSIM/VIF next to PSNR.
-- **Statistics:** mean +/- std per method, plus paired per-image differences with a Wilcoxon test.
-- **Methodology:** every setting chosen on 30 tuning images disjoint from the 100 evaluation
-  images; seeded per-image masks; compute reported as iterations actually run (early stopping).
-- **Readout cropping** (removing the 2x readout oversampling before fitting) is exact and standard;
-  report its time saving and its small quality cost (ablation).
+Don't draft until Itai asks. One article (Q1/Q2), knee first; brain, more accelerations, uncertainty
+maps and low-field are part of the plan. All numbers below are provisional -- take final numbers
+from the final runs' CSVs (`CKPT_ROOT/results/`, `CKPT_ROOT/grid_search/*/summary_*.csv`).
+
+**Story / claims.** Un-trained (no training data), compute-matched accelerated MRI reconstruction
+with a K-ensemble, calibrated uncertainty, carrying over from high- to low-field. Be precise about
+what "training-free" means: no network is trained on a dataset, BUT delta/TV/lambda were tuned with
+ground truth on 30 tuning images -- disclose this, unless the ground-truth-free settings (delta
+from the noise level, TV by the discrepancy principle, lambda* = sigma_p^2/sigma_n^2) are done
+and validated against the grid-search oracle, which would make the claim fully true.
+
+**Method, exact settings (as of 2026-10-03; re-check Section 2 before writing).**
+- Network: ConvDecoder, 7 stages, 256 channels; fixed input z ~ Uniform(0,1), shape 256 x 8 x 4;
+  each stage nearest-neighbor upsample (geometric size schedule to the k-space grid) -> 3x3 conv ->
+  ReLU -> BatchNorm -> DCSE; final 1x1 conv to 2 x coils (real/imag per coil).
+- DCSE (the architectural contribution): squeeze-excitation (reduction 16, hidden = max(C/16, 4))
+  whose gating MLP also receives a scalar data-consistency signal -- the previous iteration's
+  data-fidelity loss (detached). Compare against plain SE and no SE in the ablation.
+- Forward model: per-coil FFT of the output, multiplied by the undersampling mask, compared with
+  the measured k-space scaled by an RMS-matching scaling factor (pred vs target RMS on acquired
+  samples, computed once before fitting).
+- Loss: Huber(delta) data fidelity + TV_WEIGHT * TV, TV = mean |vertical diff| + mean |horizontal
+  diff| on the raw per-coil real/imag output. Adam lr 0.01, cosine decay to 0.005 over the budget.
+- Early stopping (ground-truth-free): every 150 iterations, variance of the network output across a
+  window of the last 4 checks; stop when it exceeds 1.12 x its minimum for 2 consecutive checks
+  (not before 20% of the budget); keep the latest checkpoint within the margin. Reported compute =
+  iterations actually run.
+- Reconstruction: data consistency at reconstruction time only (hard, or soft with lambda --
+  formula below), ESPIRiT coil combination (sigpy EspiritCalib, 23-column calibration window from
+  the fully sampled center; maps estimated from the undersampled data), 320 x 320 center crop.
+- Run A (single-fit baseline): random init (seed SEED+1000), <= 6000 iterations, regular settings.
+- K-ensemble (ConvDecoder-A): K = 4 members; member i starts from the converged weights of a
+  random-init fit (<= 6000 iterations, regular settings) of a DIFFERENT image (4 fixed reference
+  images, excluded from tuning and evaluation), gets a NEW random z (seed SEED+2000+i), and is fit
+  <= 1350 iterations on the target with the accelerated settings; members averaged in the complex
+  domain with uniform weights (KAVG_WEIGHTED_ENSEMBLE=True with exponent 0 is uniform -- describe it
+  as a plain average). Reference fits are made once and reused for all images: report their
+  one-time cost separately (4 x <= 6000 iterations), amortized per image.
+- Readout cropping: the 2x readout oversampling is removed before fitting (exact; inverse FFT along
+  readout, keep the central half, FFT back): 640 x 368 -> 320 x 368.
+- Compute rule: one DCSE iteration ~1.3x a vanilla ConvDecoder iteration (Section 12.7);
+  budgets were set so total compute stays <= the original method's.
+- Soft data consistency: for coil c at k-space location r, with network prediction k_hat_c(r),
+  measurement y_c(r) (times the scaling factor) and acquired set Omega:
+  k_out_c(r) = (lambda * y_c(r) + k_hat_c(r)) / (1 + lambda) for r in Omega, k_hat_c(r) otherwise;
+  lambda = 0 is no DC, lambda -> infinity hard DC. At each acquired location this minimizes
+  |k - k_hat_c(r)|^2 + lambda * |k - y_c(r)|^2; with measurement-noise variance sigma_n^2 and
+  prediction-error variance sigma_p^2 the optimal weight is lambda* = sigma_p^2 / sigma_n^2 (noisier
+  data -> smaller lambda). Same form as Schlemper et al.'s cascaded-CNN DC layer (IEEE TMI 2018) --
+  verify the citation.
+
+**Data and protocol.** fastMRI knee multicoil, CORPD_FBK, 15 coils (val + train_batch_0 pooled;
+188 files), middle slice of each volume; 4x random Cartesian undersampling (fastMRI MaskFunc: 7%
+fully sampled center, realized acceleration within +/-0.03 of 4), one mask per image seeded from
+its k-space. Ground truth = ESPIRiT combination of the FULLY sampled k-space with the same maps --
+NOT fastMRI's RSS target; state it. Splits: 30 tuning images (all settings), 100 evaluation images
+(used once, everything fixed in advance), 4 reference images, all disjoint. Metrics PSNR, SSIM,
+MS-SSIM, VIF, NMSE, HFEN on the central 320 x 320; paired per-image comparisons with Wilcoxon.
+Settings chosen by grid search on the tuning images: composite score (PSNR 0.35, SSIM 0.35, VIF
+0.15, HFEN 0.15 on per-image-centered, spread-normalized metrics), excluding settings clearly
+worse on PSNR or SSIM, ties tested on paired differences (`analyze_grid_search.py`).
+
+**Findings so far (full k-space, 4x; final numbers will be cropped-pipeline).**
+- TV weight is the decisive setting; delta barely matters in 0.065-0.65 (< 0.15 dB) -- a
+  robustness point. Huber beats plain MSE by ~2.3 dB (Run A) / ~1.3 dB (ensemble).
+- Best settings: Run A delta 0.14, TV 1.2e-3; ensemble members gentler, delta 0.065, TV 4.75e-4
+  (averaging already denoises).
+- Run A, 100 images: PSNR 34.00 +/- 2.36 dB, SSIM 0.871; early stopping used ~56% of the budget.
+- Ensemble vs Run A on the tuning images, each at its best settings: +0.42 dB, +0.003 SSIM, +0.026
+  VIF, -0.021 HFEN -- a modest gain; the 100-image paired result is the number to report.
+- Readout cropping: ~32% less time per fit for ~-0.15 dB PSNR and slightly lower VIF (8 images;
+  100-image figure pending).
+- Error patterns: residual aliasing at strong vertical edges (phase-encode direction) is the main
+  reconstruction failure; low-PSNR images often have noisy references.
+
+**Do not use / known issues.**
+- Don't use grid_v2-v4, the max-normalized metric columns, the old 32.3/33.3 dB batch numbers, or
+  knee-only metrics (Itai's decision).
+- **Manual exclusions:** `KAVG_BATCH_MANUAL_EXCLUDE` (Section 2, since 2026-09-14) drops 6 files
+  from the evaluation pool -- per its comment, "qualitatively problematic reconstructions".
+  Excluding images because their reconstructions looked bad biases the evaluation; each needs a
+  data-level reason (e.g. corrupt file, artifact in the fully sampled data) or must go back in.
+  Resolve before the final evaluation runs.
+- Two settings in the notebook have no effect and need not be described: Z_SOURCE options other
+  than uniform (the MRI-VAE latent was found non-Gaussian and is unused), and the frequency
+  regularization / Kaiser upsampler options (off).
+
+**Still missing for the paper:** baselines (CS L1-wavelet, original ConvDecoder, DIP/Deep
+Decoder, a pretrained fastMRI U-Net/VarNet for reference), ablations (DCSE, Huber+TV, early
+stopping on/off, ensemble vs single, guided init, readout crop, soft vs hard DC), 8x, brain,
+uncertainty-map calibration, ground-truth-free settings, low-field data. Related work to cite
+(verify each): ConvDecoder (Darestani & Heckel, IEEE TCI 2021), Deep Image Prior (Ulyanov et al.),
+Deep Decoder (Heckel & Hand), early stopping for DIP (arXiv:2112.06074), SSDU (Yaman et al. 2020),
+ESPIRiT (Uecker et al. 2014), fastMRI (Zbontar et al.), Schlemper et al. 2018 (DC layer).
 
 ## Rules and conventions
 
