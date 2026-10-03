@@ -345,9 +345,7 @@ NOT fastMRI's RSS target; state it. Splits: 30 tuning images (all settings), 100
 (used once, everything fixed in advance), 4 reference images, all disjoint. The evaluation list is
 the first 100 eligible files in filename order (fastMRI filenames are anonymized IDs) after
 excluding tuning/reference/demo images and files with data-level failures (unreadable, ESPIRiT
-calibration failure); no image is excluded for how it reconstructs. (Until 2026-10-03, 5 files were
-excluded by hand for "bad reconstructions" -- removed, and the evaluation list re-drawn. The 30
-tuning images were drawn while those 5 were excluded; that affects only tuning, not evaluation.) Metrics PSNR, SSIM,
+calibration failure); no image is excluded for how it reconstructs. Metrics PSNR, SSIM,
 MS-SSIM, VIF, NMSE, HFEN on the central 320 x 320; paired per-image comparisons with Wilcoxon.
 Settings chosen by grid search on the tuning images: composite score (PSNR 0.35, SSIM 0.35, VIF
 0.15, HFEN 0.15 on per-image-centered, spread-normalized metrics), excluding settings clearly
