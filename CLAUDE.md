@@ -193,9 +193,17 @@ Done:
 
 - [x] **Readout cropping adopted (2026-10-02):** `READOUT_CROP=True` (Section 2) removes the 2x
       readout oversampling at every k-space load (`maybe_readout_crop()`, Section 5): 640x368 ->
-      320x368, ~1.64x faster per iteration, ~30% less time per fit; quality within noise of full
-      k-space at 8 tuning images (crop test, job 98647). Tag `_rocrop` keeps it apart from all
-      earlier full-k-space results (grid_v2-v5, Run A job 98645, the cancelled grid_accel_v1).
+      320x368, 1.64x faster per iteration, ~32% less time per fit -- at a small, consistent quality
+      cost on the crop test (job 98647, 8 tuning images, paired): at TV 1.2e-3 PSNR -0.15 +/- 0.08
+      dB, SSIM +0.0015 +/- 0.0012, VIF 0.780 vs 0.804, HFEN 0.341 vs 0.329; PSNR also lower at TV
+      4.75e-4 (-0.33) and 3e-3 (-0.24); best TV unchanged. Adopted for the time saving; the
+      100-image cropped vs full Run A comparison is the definitive check (switch back before the
+      K-ensemble batch if the cost is clearly larger). Tag `_rocrop` keeps it apart from all
+      earlier full-k-space results (grid_v2-v5, Run A job 98645, grid_accel_v1).
+- [x] **Run A, full k-space, 100 images (job 98645):** PSNR 34.00 +/- 2.36 dB, SSIM 0.871 +/- 0.039,
+      MS-SSIM 0.968, VIF 0.820, NMSE 0.0051, HFEN 0.325, knee-only 32.95 dB / 0.849; 3350 +/- 1935
+      of 6000 iterations actually run, 122 s per image. (grid_v5 predicted 34.19 / 0.876 for these
+      settings on the 30 tuning images -- the tuning carried over.)
 
 Next, in order (all on the cropped pipeline):
 1. **grid_crop_v1** (Run A regime, delta [0.065, 0.14, 0.3] x TV [4.75e-4, 1.2e-3, 3e-3], same 30
