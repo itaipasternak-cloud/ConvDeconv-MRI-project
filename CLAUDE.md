@@ -165,6 +165,12 @@ Main scripts:
 - Image budget: ~200 knee CORPD_FBK/15-coil files (val + train_batch_0). One experiment per
   group uses ~141 (7 demo/default + 4 refs + 100 batch + 30 tuning). Brain AXT2 4-coil (165) and
   16-coil (161) groups are enough; smaller groups are not.
+- **Every slow, full fit is at most 6000 iterations** (2026-10-03): Run A, the grid searches, and
+  the K-ensemble's reference fits (`num_iters_slow = 6000`, was 10000; `num_iters_A = 6000`). A saved
+  reference fit with another count is refit, not reused (`reference_matches_settings()`); the
+  full-k-space references in `..._refs` (without `_rocrop`) are 10000-iteration ones. Known gap:
+  ensemble MEMBER checkpoints don't record which reference version they started from, so members
+  saved before their references were refit would be reused -- delete them if that ever happens.
 - **Compute budget rule (r ≈ 1.3)**: one DCSE iteration costs ~1.3x a vanilla ConvDecoder
   iteration (measured by Section 12.7). Total compute must stay at or below the original
   method's, which is why Run A uses 6000 iterations (roughly 9000 vanilla-equivalent, per Itai).
