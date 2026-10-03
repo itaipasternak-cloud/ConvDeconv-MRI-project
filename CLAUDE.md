@@ -273,6 +273,31 @@ Decisions and open questions:
   fixed budget is untested -- in the ablation.
 - `KAVG_WEIGHTED_ENSEMBLE=True` with `KAVG_WEIGHT_EXPONENT=0` is a plain (uniform) average.
 
+## Notes for the paper (to use when writing it -- not drafted text)
+
+- **Soft data consistency.** For coil c at k-space location r, with network prediction
+  k_hat_c(r), measurement y_c(r) (times the fit's scaling factor) and acquired set Omega:
+  k_out_c(r) = (lambda * y_c(r) + k_hat_c(r)) / (1 + lambda) for r in Omega; k_hat_c(r) otherwise.
+  lambda = 0 is no DC, lambda -> infinity is hard DC. At each acquired location this is the
+  minimizer of |k - k_hat_c(r)|^2 + lambda * |k - y_c(r)|^2 -- a weighted compromise between the
+  network and the measurement. Statistically, with measurement-noise variance sigma_n^2 and
+  network-prediction-error variance sigma_p^2, the optimal weight is
+  lambda* = sigma_p^2 / sigma_n^2 (noisier data -> smaller lambda) -- the basis for a
+  ground-truth-free choice of lambda from the noise level. Same form as the data-consistency layer
+  of Schlemper et al.'s cascaded CNN (IEEE TMI 2018) -- verify the exact citation.
+- **Metrics:** whole-image PSNR/SSIM/MS-SSIM/VIF/NMSE/HFEN on the central 320 x 320 (background
+  included), raw scale (reconstruction not rescaled; both divided by the ground truth's max).
+  Middle slice of each volume, data range from that slice -- NOT the fastMRI leaderboard's
+  volume-wise evaluation; say so. No knee-only metrics in the paper.
+- **PSNR penalizes denoising when the reference is noisy:** the lowest-scoring images (e.g.
+  file1001022) have noisy fully-sampled references the reconstruction doesn't (and shouldn't)
+  reproduce -- worth a sentence; it also supports reporting SSIM/VIF next to PSNR.
+- **Statistics:** mean +/- std per method, plus paired per-image differences with a Wilcoxon test.
+- **Methodology:** every setting chosen on 30 tuning images disjoint from the 100 evaluation
+  images; seeded per-image masks; compute reported as iterations actually run (early stopping).
+- **Readout cropping** (removing the 2x readout oversampling before fitting) is exact and standard;
+  report its time saving and its small quality cost (ablation).
+
 ## Rules and conventions
 
 - **Pushing to `master` changes what cluster jobs run.** Section 1 runs `git pull` when a job
