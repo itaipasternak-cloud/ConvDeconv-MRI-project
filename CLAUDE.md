@@ -55,6 +55,9 @@ with `*_raw`/`*_ls` alongside; searches after it have `metric_scale: raw` in the
   `setup_knee_combined_pool.sh`: dataset pool checks/setup.
 - `outputs/`, `slurm_logs/`: a few committed job outputs/logs (early runs).
 - `tests/e2e_cpu/`: CPU end-to-end test of the notebook on synthetic data (see its README).
+- `show_batch_results.py` (+ `run_show_batch_results.sbatch`): figures of a finished batch run's
+  reconstructions (best / median / worst by PSNR, or chosen images), reloaded from the saved
+  member fits -- no fitting; also re-checks the metrics against the run's CSV.
 - `readout_crop_test.py` (+ `run_readout_crop_test.sbatch`): fit full (640 x 368) vs
   readout-cropped (320 x 368, the readout oversampling removed exactly) k-space on 8 tuning images
   x 3 TV weights, same masks/scoring; quality, iterations and time per iteration.
