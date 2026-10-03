@@ -117,7 +117,8 @@ Main scripts:
 - **Previous grid search** (g1-g5 + u1-u14, 81 combos, 13 images, composite score, scored
   WITHOUT data consistency and with a different seed than the batch) picked `HUBER_DELTA=0.36`,
   `TV_WEIGHT=3.5e-05`.
-- `KAVG_BATCH_MANUAL_EXCLUDE` holds 6 knee files dropped from the batch on purpose.
+- `KAVG_BATCH_MANUAL_EXCLUDE` is empty since 2026-10-03 (it held 6 files dropped for looking bad --
+  removed as a bias; only data-level failures may exclude an image).
 - **The grid winner made the 100-image batch results worse**: Run A 32.3 dB, K-ensemble 33.3 dB
   PSNR. Replaced by the rebuilt grid search (Section 6.5, `grid_v2`): same fit/scoring path as the
   batch, per-image metrics saved, winner chosen by `analyze_grid_search.py`. Submitted
@@ -149,11 +150,11 @@ Main scripts:
   inside the grid; delta 0.065-0.65 changes PSNR < 0.15 dB; MSE (delta 100) is ~2.3 dB worse. VIF
   falls as TV rises (0.80 at the winner vs ~0.86 at low TV) while HFEN improves. +1.17 dB / +0.034
   SSIM over the original default (0.14, 1.2e-5).
-- Fixed evaluation set (2026-10-01): the delta-0.36 run's lists were copied to
-  `selections/kavg_batch_selection_n100.json`, `kavg_ref_selection_kavg4.json`,
-  `kavg_ref_selection_kavg1.json`, and `kavg_batch_selection_n1.json` = its first image (so a
-  1-image test run accumulates into the 100-image results). The delta-0.1192 list was not usable:
-  it contains 6 tuning images.
+- Reference images: `selections/kavg_ref_selection_kavg4.json` / `kavg_ref_selection_kavg1.json`
+  (copied 2026-10-01 from the delta-0.36 run). Evaluation list: the 2026-10-01 list
+  (`kavg_batch_selection_n100.json`, used by the full-k-space Run A 98645) was drawn while the
+  manual exclusions applied, so it is being re-drawn for the cropped runs (Next step 0); the batch
+  cell now excludes every saved reference selection when drawing it.
 - **Undersampling masks are seeded per image since 2026-10-01** (`mask_seed_for()`, Section 5:
   SEED + checksum of the image's k-space). Before that, MaskFunc reseeded from OS entropy on
   every call, so grid_v2-v4 compared settings on different masks (unbiased, but noisier -- their
@@ -229,6 +230,12 @@ Done:
       settings on the 30 tuning images -- the tuning carried over.)
 
 Next, in order (all on the cropped pipeline):
+0. **Re-draw the evaluation list** (manual exclusions removed 2026-10-03): before submitting the
+   cropped Run A, move the old evaluation lists aside on the cluster --
+   `cd ~/fastmri_results/knee/selections && mkdir -p old && mv kavg_batch_selection_*.json old/`.
+   The cropped Run A then draws the new 100 (excluding every reference image of every K), and all
+   later runs reuse it. The full-k-space Run A (98645) used the old list: compare it on the shared
+   images only.
 1. **grid_crop_v1** (job 98976; Run A regime, delta [0.065, 0.14, 0.3] x TV [4.75e-4, 1.2e-3, 3e-3],
    same 30 images) confirms or moves the regular winner (0.14, 1.2e-3); set it in Section 2 if it moves.
 2. Then submit together (Section 2 switched to the accelerated confirmation grid first):
@@ -335,7 +342,12 @@ and validated against the grid-search oracle, which would make the claim fully t
 fully sampled center, realized acceleration within +/-0.03 of 4), one mask per image seeded from
 its k-space. Ground truth = ESPIRiT combination of the FULLY sampled k-space with the same maps --
 NOT fastMRI's RSS target; state it. Splits: 30 tuning images (all settings), 100 evaluation images
-(used once, everything fixed in advance), 4 reference images, all disjoint. Metrics PSNR, SSIM,
+(used once, everything fixed in advance), 4 reference images, all disjoint. The evaluation list is
+the first 100 eligible files in filename order (fastMRI filenames are anonymized IDs) after
+excluding tuning/reference/demo images and files with data-level failures (unreadable, ESPIRiT
+calibration failure); no image is excluded for how it reconstructs. (Until 2026-10-03, 5 files were
+excluded by hand for "bad reconstructions" -- removed, and the evaluation list re-drawn. The 30
+tuning images were drawn while those 5 were excluded; that affects only tuning, not evaluation.) Metrics PSNR, SSIM,
 MS-SSIM, VIF, NMSE, HFEN on the central 320 x 320; paired per-image comparisons with Wilcoxon.
 Settings chosen by grid search on the tuning images: composite score (PSNR 0.35, SSIM 0.35, VIF
 0.15, HFEN 0.15 on per-image-centered, spread-normalized metrics), excluding settings clearly
@@ -357,11 +369,6 @@ worse on PSNR or SSIM, ties tested on paired differences (`analyze_grid_search.p
 **Do not use / known issues.**
 - Don't use grid_v2-v4, the max-normalized metric columns, the old 32.3/33.3 dB batch numbers, or
   knee-only metrics (Itai's decision).
-- **Manual exclusions:** `KAVG_BATCH_MANUAL_EXCLUDE` (Section 2, since 2026-09-14) drops 6 files
-  from the evaluation pool -- per its comment, "qualitatively problematic reconstructions".
-  Excluding images because their reconstructions looked bad biases the evaluation; each needs a
-  data-level reason (e.g. corrupt file, artifact in the fully sampled data) or must go back in.
-  Resolve before the final evaluation runs.
 - Two settings in the notebook have no effect and need not be described: Z_SOURCE options other
   than uniform (the MRI-VAE latent was found non-Gaussian and is unused), and the frequency
   regularization / Kaiser upsampler options (off).
