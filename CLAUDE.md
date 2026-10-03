@@ -26,8 +26,11 @@ Metrics everywhere: PSNR, SSIM, MS-SSIM, VIF (higher better), NMSE, HFEN (lower 
 reconstruction is NOT rescaled; gt and rec are both divided by gt's max (rec is already on gt's
 scale -- reconstruct() undoes scaling_factor). The old convention, normalize() = each image divided
 by its OWN max, penalized one bright artifact pixel or extra noise everywhere (a fit scored 22.3 dB
-that way vs 31.2 dB raw). **Not reported in the paper (Itai, 2026-10-03):** anatomy-only `PSNR_fg`/`SSIM_fg` (`anatomy_metrics()`) -- still recorded next grid_v2-v4 results are max-normalized only; grid_v5's standard columns are max-normalized
-with `*_raw`/`*_ls` alongside; searches after it have `metric_scale: raw` in their manifest.
+that way vs 31.2 dB raw). Anatomy-only `PSNR_fg`/`SSIM_fg`
+(`anatomy_metrics()`) are still recorded in the CSVs but are **not reported in the paper** (Itai,
+2026-10-03): the paper reports the whole-image metrics on the central 320 x 320. grid_v2-v4 results
+are max-normalized only; grid_v5's standard columns are max-normalized with `*_raw`/`*_ls`
+alongside; searches after it have `metric_scale: raw` in their manifest.
 
 ## Where things live
 
