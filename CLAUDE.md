@@ -111,8 +111,8 @@ Main scripts:
 
 - Default config: `convdecoder_dcse`, uniform z, Huber+TV, variance early stopping, LR schedule on,
   `K_VALUE=4`, guided init from different images, `ACCEL_NUM_ITERS=1350`, `SEED=0`.
-- **Section 2 defaults: `HUBER_DELTA=0.3`, `TV_WEIGHT=1.2e-3`** (2026-10-03, grid_crop_v1's winner on
-  the cropped pipeline; grid_crop_v2 checks delta past 0.3; full k-space's was 0.14 / 1.2e-3), one set for all regimes (`USE_SEPARATE_ACCEL_PARAMS=False`, so `ACCEL_*` mirror them)
+- **Section 2 defaults: `HUBER_DELTA=0.3`, `TV_WEIGHT=1.2e-3`, hard DC** (2026-10-03, final regular
+  settings on the cropped pipeline: grid_crop_v1 + grid_crop_v2; full k-space's was 0.14 / 1.2e-3), one set for all regimes (`USE_SEPARATE_ACCEL_PARAMS=False`, so `ACCEL_*` mirror them)
   until the accelerated regime gets its own grid search.
 - **Previous grid search** (g1-g5 + u1-u14, 81 combos, 13 images, composite score, scored
   WITHOUT data consistency and with a different seed than the batch) picked `HUBER_DELTA=0.36`,
@@ -233,26 +233,32 @@ Done:
       of 6000 iterations actually run, 122 s per image. (grid_v5 predicted 34.19 / 0.876 for these
       settings on the 30 tuning images -- the tuning carried over.)
 
+- [x] **grid_crop_v2 (job 99146; Run A regime, delta [0.3, 0.65, 1.3] x TV [4.75e-4, 1.2e-3, 3e-3] x
+      lambda [0, 0.3, 1, 3, 10, 30, hard], 63 combinations, 30 tuning images):** winner **delta 0.3,
+      TV 1.2e-3, hard DC** -- PSNR 34.30 dB, SSIM 0.879, VIF 0.808, HFEN 0.339 (reproduces
+      grid_crop_v1's 34.32). Final regular settings: delta 0.3 is interior across the two cropped
+      grids (0.14 worse in v1, 0.65 / 1.3 worse here), TV 1.2e-3 interior. Soft DC never helps a
+      6000-iteration fit: every metric falls monotonically as lambda falls (lambda 30 34.28, 10
+      34.26, 3 34.19, 1 34.05, 0.3 33.87, 0 = no DC 33.69 dB), same order at every delta/TV.
+      **Run A uses hard DC.** Statistically tied with it: delta 0.3/0.65 x TV 4.75e-4/1.2e-3 at
+      lambda 10, 30 or hard.
+
 Next, in order (all on the cropped pipeline):
-1. **grid_crop_v2** (Run A regime, delta [0.3, 0.65, 1.3] x TV [4.75e-4, 1.2e-3, 3e-3], same 30 images,
-   soft-DC scoring with GRID_DC_LAMBDAS [0, 0.3, 1, 3, 10, 30]): `sbatch --array=0-3
-   --export=ALL,GRID_NUM_SHARDS=4 run_knee_grid_search.sbatch` (~3 h). Settles the regular delta past
-   grid_crop_v1's edge AND Run A's lambda, jointly (`analyze_grid_search.py`, default --dc auto).
-   Set the winner (delta/TV) in Section 2.
 2. **Re-draw the evaluation list**, then submit together. Re-draw: on the cluster,
    `cd ~/fastmri_results/knee/selections && mkdir -p old && mv kavg_batch_selection_*.json old/`;
    the next batch run draws the new 100 (excluding every reference image of every K) and all later
    runs reuse it. The full-k-space Run A (98645) used the old list: compare on shared images only.
    a. **Run A cropped, 100 images** (`run_knee_batch_runA.sbatch`; hard DC, re-scored with the
       chosen lambda later) -- final-pipeline Run A; cropped-vs-full check on the shared images.
-   b. **Accelerated confirmation grid, cropped, with soft-DC scoring:** GRID_SEARCH_NAME
-      "grid_accel_crop_v1", GRID_REGIME "accel", 3 x 3 around the full-k-space accelerated winner
-      (delta 0.065, TV 4.75e-4) -- shift delta up if needed, as cropping moved Run A's delta from
-      0.14 to 0.3 -- GRID_DC_LAMBDAS [0, 0.3, 1, 3, 10, 30]; `sbatch --array=0-3
+   b. **Accelerated confirmation grid, cropped, with soft-DC scoring** (set in Section 2, e2e-tested):
+      GRID_SEARCH_NAME "grid_accel_crop_v1", GRID_REGIME "accel", delta [0.065, 0.14, 0.3] x TV
+      [1.9e-4, 4.75e-4, 1.2e-3] (around the full-k-space winner 0.065 / 4.75e-4, one delta step up
+      since cropping moved Run A's delta one step up; contains the regular setting 0.3 / 1.2e-3 for
+      comparison), GRID_DC_LAMBDAS [0, 0.3, 1, 3, 10, 30]; `sbatch --array=0-3
       --export=ALL,GRID_NUM_SHARDS=4 run_knee_grid_search.sbatch`. Fits the 4 cropped references
       (6000 iter, at the regular winner) first.
 3. Decisions from 2: keep cropping? accelerated delta/TV (`USE_SEPARATE_ACCEL_PARAMS=True` +
-   `ACCEL_*`); lambda for Run A and for the ensemble -- all chosen on the tuning images
+   `ACCEL_*`); lambda for the ensemble (Run A: hard DC, from grid_crop_v2) -- all chosen on the tuning images
    (`analyze_grid_search.py` ranks delta, TV and lambda jointly).
 4. K-ensemble 1-image test, then the **K-ensemble 100-image batch**. Its fits don't depend on lambda
    (DC is applied only when reconstructing); it is scored with hard DC and re-scored with the chosen
@@ -318,7 +324,7 @@ and validated against the grid-search oracle, which would make the claim fully t
   formula below), ESPIRiT coil combination (sigpy EspiritCalib, 23-column calibration window from
   the fully sampled center; maps estimated from the undersampled data), 320 x 320 center crop.
 - Run A (single-fit baseline): random init (seed SEED+1000), <= 6000 iterations, regular settings
-  (cropped pipeline: delta 0.3, TV 1.2e-3 so far -- grid_crop_v2 pending).
+  (cropped pipeline: delta 0.3, TV 1.2e-3, hard DC -- final, from grid_crop_v1 + v2).
 - K-ensemble (ConvDecoder-A): K = 4 members; member i starts from the converged weights of a
   random-init fit (<= 6000 iterations, regular settings) of a DIFFERENT image (4 fixed reference
   images, excluded from tuning and evaluation), gets a NEW random z (seed SEED+2000+i), and is fit
@@ -356,7 +362,7 @@ worse on PSNR or SSIM, ties tested on paired differences (`analyze_grid_search.p
 **Findings so far (full k-space, 4x; final numbers will be cropped-pipeline).**
 - TV weight is the decisive setting; delta barely matters in 0.065-0.65 (< 0.15 dB) -- a
   robustness point. Huber beats plain MSE by ~2.3 dB (Run A) / ~1.3 dB (ensemble).
-- Best settings: Run A (cropped) delta 0.3, TV 1.2e-3 (full k-space: 0.14); ensemble members
+- Best settings: Run A (cropped) delta 0.3, TV 1.2e-3, hard DC (full k-space: 0.14); ensemble members
   gentler -- full k-space delta 0.065, TV 4.75e-4 (averaging already denoises); cropped pending.
 - The best Huber delta depends on the k-space scale: readout cropping moved it from 0.14 to 0.3.
   Worth a sentence (delta is relative to the data scale) -- and a motivation for setting it from
@@ -367,6 +373,11 @@ worse on PSNR or SSIM, ties tested on paired differences (`analyze_grid_search.p
 - Readout cropping: ~32% less time per fit, and -- once delta is re-tuned for it -- no quality
   cost: at each pipeline's best settings cropped is slightly better on all metrics (tuning images;
   100-image check pending). The crop test's -0.15 dB came from keeping full k-space's delta.
+- Soft DC does not help a full-length single fit (tuning images, grid_crop_v2): PSNR falls
+  monotonically as lambda falls, from 34.30 (hard) to 33.69 dB (no DC); lambda 10-30 ~ hard. In
+  lambda* = sigma_p^2/sigma_n^2 terms, the converged network's prediction error at acquired
+  locations is much larger than the measurement noise. Whether it helps the short ensemble members
+  is tested by grid_accel_crop_v1. Report as a negative/ablation result either way.
 - Error patterns: residual aliasing at strong vertical edges (phase-encode direction) is the main
   reconstruction failure; low-PSNR images often have noisy references.
 
