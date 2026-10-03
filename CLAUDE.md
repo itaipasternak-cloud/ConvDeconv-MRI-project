@@ -117,8 +117,8 @@ Main scripts:
 - **Previous grid search** (g1-g5 + u1-u14, 81 combos, 13 images, composite score, scored
   WITHOUT data consistency and with a different seed than the batch) picked `HUBER_DELTA=0.36`,
   `TV_WEIGHT=3.5e-05`.
-- `KAVG_BATCH_MANUAL_EXCLUDE` is empty since 2026-10-03 (it held 6 files dropped for looking bad --
-  removed as a bias; only data-level failures may exclude an image).
+- Only data-level failures (unreadable file, failed ESPIRiT calibration) exclude an image from the
+  evaluation pool; `KAVG_BATCH_MANUAL_EXCLUDE` stays empty.
 - **The grid winner made the 100-image batch results worse**: Run A 32.3 dB, K-ensemble 33.3 dB
   PSNR. Replaced by the rebuilt grid search (Section 6.5, `grid_v2`): same fit/scoring path as the
   batch, per-image metrics saved, winner chosen by `analyze_grid_search.py`. Submitted
@@ -151,10 +151,8 @@ Main scripts:
   falls as TV rises (0.80 at the winner vs ~0.86 at low TV) while HFEN improves. +1.17 dB / +0.034
   SSIM over the original default (0.14, 1.2e-5).
 - Reference images: `selections/kavg_ref_selection_kavg4.json` / `kavg_ref_selection_kavg1.json`
-  (copied 2026-10-01 from the delta-0.36 run). Evaluation list: the 2026-10-01 list
-  (`kavg_batch_selection_n100.json`, used by the full-k-space Run A 98645) was drawn while the
-  manual exclusions applied, so it is being re-drawn for the cropped runs (Next step 0); the batch
-  cell now excludes every saved reference selection when drawing it.
+  (copied 2026-10-01 from the delta-0.36 run). Evaluation list: re-drawn for the cropped runs
+  (Next step 0); the batch cell excludes every saved reference selection when drawing it.
 - **Undersampling masks are seeded per image since 2026-10-01** (`mask_seed_for()`, Section 5:
   SEED + checksum of the image's k-space). Before that, MaskFunc reseeded from OS entropy on
   every call, so grid_v2-v4 compared settings on different masks (unbiased, but noisier -- their
@@ -230,7 +228,7 @@ Done:
       settings on the 30 tuning images -- the tuning carried over.)
 
 Next, in order (all on the cropped pipeline):
-0. **Re-draw the evaluation list** (manual exclusions removed 2026-10-03): before submitting the
+0. **Re-draw the evaluation list**: before submitting the
    cropped Run A, move the old evaluation lists aside on the cluster --
    `cd ~/fastmri_results/knee/selections && mkdir -p old && mv kavg_batch_selection_*.json old/`.
    The cropped Run A then draws the new 100 (excluding every reference image of every K), and all
