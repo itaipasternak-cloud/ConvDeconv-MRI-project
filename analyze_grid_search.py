@@ -38,6 +38,13 @@ max-normalized ones. Since then the notebook computes every metric on the raw sc
 Anatomy-only PSNR_fg/SSIM_fg are reported alongside when present.
 --scale auto (default) ranks on raw whenever the results have it, otherwise on max.
 
+Data consistency (--dc): searches with GRID_DC_LAMBDAS also scored every fit under soft data
+consistency, k = (lambda * measured + predicted) / (1 + lambda) at acquired k-space locations
+(lambda 0 = none), in columns <metric>_dc<lambda>; the standard columns are hard DC. --dc auto
+(default) then ranks every (delta, tv, lambda) triple TOGETHER -- same score, guard and tie test,
+so lambda is chosen jointly with delta/TV on the tuning images. --dc hard ranks hard DC only;
+--dc <value> ranks one lambda.
+
 Usage:
     python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/grid_v5 --scale raw --plot
     python3 analyze_grid_search.py --grid-dir ~/fastmri_results/knee/grid_search/grid_v2
@@ -87,6 +94,8 @@ def main():
     parser.add_argument("--plot", action="store_true", help="save heatmaps (needs matplotlib)")
     parser.add_argument("--scale", choices=["auto", "max", "raw", "ls"], default="auto",
                         help="which intensity-scale convention's metrics to rank on (see above)")
+    parser.add_argument("--dc", default="auto",
+                        help="data consistency: auto (jointly with lambda if recorded), hard, or one lambda value")
     args = parser.parse_args()
 
     grid_dirs = [os.path.expanduser(d) for d in args.grid_dir]
@@ -108,14 +117,7 @@ def main():
     for d, m in zip(grid_dirs[1:], manifests[1:]):
         assert m["images"] == manifests[0]["images"] and m["config"] == manifests[0]["config"], (
             f"{d} used different images or config than {grid_dirs[0]} -- they can't be ranked together.")
-    combos = sorted(pairs)
-    combo_of = {p: c for c, p in enumerate(combos)}
-    deltas = sorted({d for d, _ in combos})
-    tvs = sorted({tv for _, tv in combos})
     n_images = len(manifests[0]["images"])
-    if len(grid_dirs) > 1:
-        print(f"Ranking {len(grid_dirs)} searches together ({', '.join(os.path.basename(d) for d in grid_dirs)}): "
-              f"{len(combos)} distinct settings on the same {n_images} images.")
 
     df = pd.concat(frames, ignore_index=True)
 
@@ -142,7 +144,51 @@ def main():
     extra = [c for c in ("PSNR_fg", "SSIM_fg") if c in df.columns and df[c].notna().any()]
     if scale != "max":
         suffix += f"_{scale}"
-    df["Combo"] = [combo_of[(float(d), float(tv))] for d, tv in zip(df["Huber_Delta"], df["TV_Weight"])]
+
+    # --- data consistency: hard (the standard columns) and any recorded soft-DC lambdas ---
+    lam_sets = {tuple(float(x) for x in m["config"].get("dc_lambdas", [])) for m in manifests}
+    assert len(lam_sets) == 1, f"these searches recorded different dc_lambdas ({lam_sets})"
+    recorded = list(lam_sets.pop())
+    if args.dc == "auto":
+        lams = [np.inf] + recorded
+    elif args.dc == "hard":
+        lams = [np.inf]
+    else:
+        lams = [float(args.dc)]
+        assert lams[0] in recorded, f"--dc {args.dc}: recorded lambdas are {recorded}"
+        suffix += f"_dc{lams[0]:g}"
+    if lams != [np.inf]:
+        parts = []
+        for lam in lams:
+            part = df.copy()
+            if not np.isinf(lam):
+                for m in METRICS:
+                    part[m] = df[f"{m}_dc{lam:g}"]
+            part["DC_Lambda"] = lam
+            parts.append(part)
+        df = pd.concat(parts, ignore_index=True)
+        extra = []   # anatomy-only columns exist for hard DC only
+        print(f"Data consistency: ranking lambda in {['hard' if np.isinf(l) else l for l in lams]} "
+              f"jointly with delta/TV (lambda 0 = none)." if len(lams) > 1 else
+              f"Data consistency: soft, lambda = {lams[0]:g}, for every setting.")
+    else:
+        df["DC_Lambda"] = np.inf
+    joint = len(lams) > 1
+
+    combos = sorted((d, tv, lam) for d, tv in pairs for lam in lams)
+    combo_of = {k: c for c, k in enumerate(combos)}
+    deltas = sorted({k[0] for k in combos})
+    tvs = sorted({k[1] for k in combos})
+
+    def label(c):
+        d, tv, lam = combos[c]
+        return f"delta={d:g} tv={tv:g}" + ((" DC=hard" if np.isinf(lam) else f" DC lambda={lam:g}") if joint else "")
+
+    if len(grid_dirs) > 1:
+        print(f"Ranking {len(grid_dirs)} searches together ({', '.join(os.path.basename(d) for d in grid_dirs)}): "
+              f"{len(combos)} distinct settings on the same {n_images} images.")
+    df["Combo"] = [combo_of[(float(d), float(tv), float(l))]
+                   for d, tv, l in zip(df["Huber_Delta"], df["TV_Weight"], df["DC_Lambda"])]
     df = df.drop_duplicates(subset=["Image", "Combo"], keep="first")
 
     # --- completeness: only images that every combination has finished are comparable ---
@@ -162,7 +208,7 @@ def main():
     if len(diverged):
         print("Diverged fits (these combinations are not eligible):")
         for c, n in diverged.items():
-            print(f"  delta={combos[c][0]:g} tv={combos[c][1]:g}: {n} image(s)")
+            print(f"  {label(c)}: {n} image(s)")
 
     # --- per-metric image x combo tables ---
     tables = {m: df.pivot(index="Image", columns="Combo", values=m) for m in METRICS + extra}
@@ -186,8 +232,8 @@ def main():
         print(f"  {m:<5} {spread:.4g}   (weight {weights[m]:.2f})")
 
     rows = []
-    for c, (d, tv) in enumerate(combos):
-        r = {"Combo": c, "Huber_Delta": d, "TV_Weight": tv,
+    for c, (d, tv, lam) in enumerate(combos):
+        r = {"Combo": c, "Huber_Delta": d, "TV_Weight": tv, "DC_Lambda": lam,
              "Diverged": int(diverged.get(c, 0))}
         for m in METRICS + extra + ["Score"]:
             col = tables[m][c].dropna()
@@ -217,15 +263,15 @@ def main():
 
     # --- report ---
     pd.set_option("display.width", 200)
-    show = ["Huber_Delta", "TV_Weight", "Score", "PSNR", "PSNR_SE", "SSIM", "VIF", "HFEN",
+    show = ["Huber_Delta", "TV_Weight"] + (["DC_Lambda"] if joint else []) + ["Score", "PSNR", "PSNR_SE", "SSIM", "VIF", "HFEN",
             "MS-SSIM", "NMSE"] + extra + ["Eligible"]
     print(f"\nWeights: {', '.join(f'{k}={v:.2f}' for k, v in weights.items())}   "
           f"(n={len(complete_images)} images, paired)")
     print(ranked[show].to_string(index=False, float_format=lambda v: f"{v:.4g}"))
 
-    print(f"\nBest mean PSNR: delta={combos[best_psnr][0]:g} tv={combos[best_psnr][1]:g} "
+    print(f"\nBest mean PSNR: {label(best_psnr)} "
           f"({summary.loc[best_psnr, 'PSNR']:.3f} dB)")
-    print(f"Best mean SSIM: delta={combos[best_ssim][0]:g} tv={combos[best_ssim][1]:g} "
+    print(f"Best mean SSIM: {label(best_ssim)} "
           f"({summary.loc[best_ssim, 'SSIM']:.4f})")
 
     tied = []
@@ -235,19 +281,22 @@ def main():
         mean, se = paired_diff(tables["Score"], w_combo, c)
         if mean - Z * se < 0:
             tied.append(c)
-    print(f"\nWINNER: HUBER_DELTA = {winner['Huber_Delta']:g}, TV_WEIGHT = {winner['TV_Weight']:g}")
+    w_lam = float(winner["DC_Lambda"])
+    print(f"\nWINNER: HUBER_DELTA = {winner['Huber_Delta']:g}, TV_WEIGHT = {winner['TV_Weight']:g}"
+          + ((", data consistency: hard" if np.isinf(w_lam) else f", soft data consistency lambda = {w_lam:g}")
+             if joint or not np.isinf(w_lam) else ""))
     print(f"  PSNR {winner['PSNR']:.3f} dB, SSIM {winner['SSIM']:.4f}, VIF {winner['VIF']:.4f}, "
           f"HFEN {winner['HFEN']:.4g}")
     if tied:
         print(f"  Statistically tied with {len(tied)} other combination(s) on the score: "
-              + ", ".join(f"({combos[c][0]:g}, {combos[c][1]:g})" for c in tied)
+              + ", ".join(f"({label(c)})" for c in tied)
               + " -- differences among these are within noise.")
     else:
         print("  Clearly ahead of every other combination on the score.")
     # Edge = extreme of the values tested ALONG the winner's own row/column (grids may be irregular
     # when several searches are combined).
-    same_tv = sorted(d for d, tv in combos if tv == winner["TV_Weight"])
-    same_delta = sorted(tv for d, tv in combos if d == winner["Huber_Delta"])
+    same_tv = sorted(d for d, tv, l in combos if tv == winner["TV_Weight"] and l == w_lam)
+    same_delta = sorted(tv for d, tv, l in combos if d == winner["Huber_Delta"] and l == w_lam)
     edges = []
     if winner["Huber_Delta"] in (same_tv[0], same_tv[-1]):
         edges.append("huber_delta")
@@ -262,9 +311,10 @@ def main():
     best_path = os.path.join(out_dir, f"best{suffix}.json")
     with open(best_path, "w") as f:
         json.dump({"huber_delta": float(winner["Huber_Delta"]), "tv_weight": float(winner["TV_Weight"]),
+                   "dc_lambda": None if np.isinf(w_lam) else w_lam,
                    "weights": weights, "n_images": len(complete_images),
                    "searches": [os.path.basename(d) for d in grid_dirs], "scale": scale,
-                   "tied_with": [list(combos[c]) for c in tied],
+                   "tied_with": [[d, tv, None if np.isinf(l) else l] for d, tv, l in (combos[c] for c in tied)],
                    "metrics": {m: float(winner[m]) for m in METRICS}}, f, indent=1)
     print(f"\nSaved {summary_path} and {best_path}.")
 
@@ -273,8 +323,11 @@ def main():
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
+        plot_rows = summary[summary["DC_Lambda"] == w_lam]   # heatmaps at the winner's DC setting
+        if joint:
+            fig.suptitle("data consistency: " + ("hard" if np.isinf(w_lam) else f"lambda = {w_lam:g}"))
         for ax, m in zip(axes, ["Score", "PSNR", "SSIM"]):
-            grid = summary.pivot(index="Huber_Delta", columns="TV_Weight", values=m).reindex(
+            grid = plot_rows.pivot(index="Huber_Delta", columns="TV_Weight", values=m).reindex(
                 index=deltas, columns=tvs)  # untested cells stay blank
             im = ax.imshow(grid.values, cmap="viridis", origin="lower")
             ax.set_xticks(range(len(tvs)), [f"{v:g}" for v in tvs], rotation=45)

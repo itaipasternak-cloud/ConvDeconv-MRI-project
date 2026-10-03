@@ -1,6 +1,8 @@
 #!/bin/bash
 # Soft vs hard data consistency, re-scoring a finished batch run's saved fits (no fitting) -- see
 # soft_dc_test.py. 100 images x 8 lambdas: roughly 30-60 minutes on one GPU.
+# Evaluation only: choose lambda on the tuning images first (grid search with GRID_DC_LAMBDAS),
+# then evaluate it here with --lambdas <chosen>,inf -- never pick lambda from this run.
 #
 # Submit:   sbatch run_soft_dc_test.sbatch --full-kspace                 (Run A, full k-space, job 98645)
 #           sbatch run_soft_dc_test.sbatch                               (Run A, current/cropped pipeline)

@@ -16,6 +16,11 @@ crop as reconstruct(); the "hard" row reproduces the batch CSV -- printed as a c
 For an ensemble (--k 4 --init guided) each member is corrected with the same lambda before the
 members are averaged, exactly as the batch does with hard DC.
 
+METHODOLOGY: this re-scores an EVALUATION run, so it must not be used to CHOOSE lambda -- that would
+tune on the test set. Choose lambda on the tuning images (a grid search with GRID_DC_LAMBDAS, ranked
+jointly with delta/TV by analyze_grid_search.py), then use this script only to evaluate the chosen
+lambda against hard DC on the evaluation set: --lambdas <chosen>,inf.
+
 Output (CKPT_ROOT/diagnostics/soft_dc/<results-csv stem>/): results.csv (one row per image x
 lambda) and, at the end of the log, mean metrics per lambda plus the paired difference to hard DC
 (mean +/- standard error, Wilcoxon signed-rank p-value) over all images.
