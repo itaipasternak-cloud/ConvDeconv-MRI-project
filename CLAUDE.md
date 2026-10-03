@@ -229,34 +229,41 @@ Done:
       settings on the 30 tuning images -- the tuning carried over.)
 
 Next, in order (all on the cropped pipeline):
-1. **grid_crop_v1** (Run A regime, delta [0.065, 0.14, 0.3] x TV [4.75e-4, 1.2e-3, 3e-3], same 30
-   images): `sbatch --array=0-2 --export=ALL,GRID_NUM_SHARDS=3 run_knee_grid_search.sbatch`.
-   Confirms or moves the regular winner (0.14, 1.2e-3); set it in Section 2 if it moves.
-2. Then together: **Run A cropped, 100 images** (`run_knee_batch_runA.sbatch`) and the **accelerated
-   confirmation grid, cropped** -- 3 x 3 around grid_accel_v1's winner, not the 8 x 10 again:
-   Section 2 GRID_SEARCH_NAME="grid_accel_crop_v1", GRID_REGIME="accel", delta [0.03, 0.065, 0.14]
-   x TV [1.9e-4, 4.75e-4, 1.2e-3]; `sbatch --array=0-3 --export=ALL,GRID_NUM_SHARDS=4
-   run_knee_grid_search.sbatch` (~15 GPU-hours). Push these Section 2 changes only after
-   grid_crop_v1 has finished (its later-starting tasks would otherwise pick them up). Don't submit Run A while the full-k-space Run A
-   (98645) is still running -- if it was requeued after the crop push it now runs cropped itself.
-3. Adopt the accelerated winner: `USE_SEPARATE_ACCEL_PARAMS=True` + `ACCEL_HUBER_DELTA/ACCEL_TV_WEIGHT`
-   (full k-space says 0.065 / 4.75e-4; the cropped confirmation decides).
-4. Reference-settings sensitivity check (`GRID_REF_HUBER_DELTA`/`GRID_REF_TV_WEIGHT`).
-5. K-ensemble 1-image test, then the **K-ensemble 100-image batch**.
-6. Paired analysis script: Run A vs ensemble per image (mean +/- SE, Wilcoxon), raw + anatomy
-   metrics, compute actually spent. Run A full (98645) vs cropped gives a 100-image crop comparison.
-7. **Soft vs hard data consistency** -- re-score cached fits, no refitting (see below). First run
-   2026-10-03 on the full-k-space Run A (job 98645): `sbatch run_soft_dc_test.sbatch --full-kspace`.
-8. Baselines; ablation table (DCSE, Huber+TV, early stopping on/off, ensemble, guided init,
-   automatic vs grid-searched settings, readout cropping); 8x; brain; uncertainty calibration;
-   ground-truth-free settings; low-field (check M4Raw).
+1. **grid_crop_v1** (job 98976; Run A regime, delta [0.065, 0.14, 0.3] x TV [4.75e-4, 1.2e-3, 3e-3],
+   same 30 images) confirms or moves the regular winner (0.14, 1.2e-3); set it in Section 2 if it moves.
+2. Then submit together (Section 2 switched to the accelerated confirmation grid first):
+   a. **Run A cropped, 100 images** (`run_knee_batch_runA.sbatch`; hard DC) -- final-pipeline Run A,
+      and the 100-image cropped-vs-full comparison (keep cropping only if VIF/HFEN don't drop
+      clearly, e.g. VIF by >= 0.02).
+   b. **Accelerated confirmation grid, cropped, with soft-DC scoring:** GRID_SEARCH_NAME
+      "grid_accel_crop_v1", GRID_REGIME "accel", delta [0.03, 0.065, 0.14] x TV [1.9e-4, 4.75e-4,
+      1.2e-3], GRID_DC_LAMBDAS [0, 0.3, 1, 3, 10, 30]; `sbatch --array=0-3 --export=ALL,GRID_NUM_SHARDS=4
+      run_knee_grid_search.sbatch` (~15 GPU-hours). Fits the 4 cropped references (6000 iter) first.
+   c. **Run A-regime lambda run:** the regular winner alone on the 30 tuning images with soft-DC
+      scoring, e.g. `sbatch --array=0 --export=ALL,GRID_NUM_SHARDS=1,CD_GRID_SEARCH_NAME=grid_crop_dc_v1,
+      CD_GRID_REGIME=run_a,CD_GRID_HUBER_DELTA_VALUES=0.14,CD_GRID_TV_WEIGHT_VALUES=0.0012,
+      CD_GRID_DC_LAMBDAS='0;0.3;1;3;10;30' run_knee_grid_search.sbatch` (~1 GPU-hour).
+3. Decisions from 2: keep cropping? accelerated delta/TV (`USE_SEPARATE_ACCEL_PARAMS=True` +
+   `ACCEL_*`); lambda for Run A and for the ensemble -- all chosen on the tuning images
+   (`analyze_grid_search.py` ranks delta, TV and lambda jointly).
+4. K-ensemble 1-image test, then the **K-ensemble 100-image batch**. Its fits don't depend on lambda
+   (DC is applied only when reconstructing); it is scored with hard DC and re-scored with the chosen
+   lambda without refitting.
+5. Paired analysis script: Run A vs ensemble per image (mean +/- SE, Wilcoxon), compute actually
+   spent. Soft-vs-hard DC on the 100 images with `soft_dc_test.py --lambdas <chosen>,inf` --
+   EVALUATION of the lambda chosen in 3, never used to choose it.
+6. Reference-settings sensitivity check (`GRID_REF_HUBER_DELTA`/`GRID_REF_TV_WEIGHT`).
+7. Baselines; ablation table (DCSE, Huber+TV, early stopping on/off, ensemble, guided init,
+   automatic vs grid-searched settings, readout cropping, soft vs hard DC); 8x; brain; uncertainty
+   calibration; ground-truth-free settings (incl. lambda from the noise level); low-field (M4Raw).
 
-Soft vs hard DC: `reconstruct()` applies HARD DC -- at every acquired k-space location the
-prediction is replaced by the measurement (`apply_data_consistency()`), re-inserting its noise.
-SOFT DC: k = (lambda * k_measured + k_predicted) / (1 + lambda) at acquired locations (hard =
-lambda -> infinity, none = lambda 0), lambda swept and, for the ground-truth-free story, set from
-the noise level. Applied at reconstruction time only, so cached Run A / K-ensemble checkpoints are
-just re-scored. Expected to matter most at low SNR (low-field).
+**Methodology rule:** every setting (delta, TV, lambda, accelerated settings, ...) is chosen on the 30
+tuning images only; the 100-image evaluation set is used once, with everything fixed in advance.
+
+Soft vs hard DC: `reconstruct(..., dc_lambda=...)` / `apply_data_consistency()` -- None = hard (the
+default: measurement replaces the prediction at acquired locations, re-inserting its noise), a
+number = soft, k = (lambda * measured + predicted) / (1 + lambda) (0 = no DC). Grid searches score
+every fit under GRID_DC_LAMBDAS as extra `<metric>_dc<lambda>` columns (no extra fitting).
 
 Decisions and open questions:
 - Speed over bit-for-bit reproducibility: `cudnn.benchmark = True` stays, so refitting the same
