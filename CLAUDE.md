@@ -205,6 +205,14 @@ Done:
       100-image cropped vs full Run A comparison is the definitive check (switch back before the
       K-ensemble batch if the cost is clearly larger). Tag `_rocrop` keeps it apart from all
       earlier full-k-space results (grid_v2-v5, Run A job 98645, grid_accel_v1).
+- [x] **grid_accel_v1, full k-space (jobs 98567 + 98646, 2400 ensembles):** accelerated winner
+      **delta 0.065, TV 4.75e-4** -- ensemble PSNR 34.61 dB, SSIM 0.879 on the 30 tuning images; tied
+      only with (0.03, 1.9e-4); interior on both axes. The short fits want gentler settings than Run
+      A (0.14, 1.2e-3): averaging already denoises. The ensemble at Run A's settings scores 34.43 /
+      0.876, so separate accelerated settings are worth ~0.18 dB. MSE (delta 100) ~1.3 dB worse.
+      Ensemble vs Run A at each one's best settings, same 30 images/masks/metrics: +0.42 dB, +0.003
+      SSIM (grid_v5 Run A: 34.19 / 0.876) -- real but well below the old ~1 dB; compare at actual
+      compute spent.
 - [x] **Run A, full k-space, 100 images (job 98645):** PSNR 34.00 +/- 2.36 dB, SSIM 0.871 +/- 0.039,
       MS-SSIM 0.968, VIF 0.820, NMSE 0.0051, HFEN 0.325, knee-only 32.95 dB / 0.849; 3350 +/- 1935
       of 6000 iterations actually run, 122 s per image. (grid_v5 predicted 34.19 / 0.876 for these
@@ -215,10 +223,14 @@ Next, in order (all on the cropped pipeline):
    images): `sbatch --array=0-2 --export=ALL,GRID_NUM_SHARDS=3 run_knee_grid_search.sbatch`.
    Confirms or moves the regular winner (0.14, 1.2e-3); set it in Section 2 if it moves.
 2. Then together: **Run A cropped, 100 images** (`run_knee_batch_runA.sbatch`) and the **accelerated
-   search, cropped** (Section 2: GRID_SEARCH_NAME="grid_accel_crop_v1", GRID_REGIME="accel", the
-   8 x 10 grid; `run_knee_grid_search.sbatch`). Don't submit Run A while the full-k-space Run A
+   confirmation grid, cropped** -- 3 x 3 around grid_accel_v1's winner, not the 8 x 10 again:
+   Section 2 GRID_SEARCH_NAME="grid_accel_crop_v1", GRID_REGIME="accel", delta [0.03, 0.065, 0.14]
+   x TV [1.9e-4, 4.75e-4, 1.2e-3]; `sbatch --array=0-3 --export=ALL,GRID_NUM_SHARDS=4
+   run_knee_grid_search.sbatch` (~15 GPU-hours). Push these Section 2 changes only after
+   grid_crop_v1 has finished (its later-starting tasks would otherwise pick them up). Don't submit Run A while the full-k-space Run A
    (98645) is still running -- if it was requeued after the crop push it now runs cropped itself.
-3. Adopt the accelerated winner (`USE_SEPARATE_ACCEL_PARAMS=True` + `ACCEL_*` if it differs).
+3. Adopt the accelerated winner: `USE_SEPARATE_ACCEL_PARAMS=True` + `ACCEL_HUBER_DELTA/ACCEL_TV_WEIGHT`
+   (full k-space says 0.065 / 4.75e-4; the cropped confirmation decides).
 4. Reference-settings sensitivity check (`GRID_REF_HUBER_DELTA`/`GRID_REF_TV_WEIGHT`).
 5. K-ensemble 1-image test, then the **K-ensemble 100-image batch**.
 6. Paired analysis script: Run A vs ensemble per image (mean +/- SE, Wilcoxon), raw + anatomy
